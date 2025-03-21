@@ -44,8 +44,64 @@ export class MemStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.userIdCounter++;
-    const user: User = { ...insertUser, id };
+    const user: User = { 
+      ...insertUser, 
+      id,
+      password: null
+    };
     this.users.set(id, user);
+    
+    // Create demo tasks for new users
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const nextWeek = new Date(today);
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    
+    // Demo task 1: High priority due today
+    await this.createTask({
+      title: "Set up development environment",
+      description: "Install required tools and dependencies for AI development",
+      dueDate: today.toISOString().split('T')[0],
+      priority: "high",
+      completed: false,
+      category: "Infrastructure",
+      userId: id
+    });
+    
+    // Demo task 2: Medium priority due tomorrow
+    await this.createTask({
+      title: "Review machine learning concepts",
+      description: "Study neural networks, supervised learning, and classification algorithms",
+      dueDate: tomorrow.toISOString().split('T')[0],
+      priority: "medium",
+      completed: false,
+      category: "ML Fundamentals",
+      userId: id
+    });
+    
+    // Demo task 3: Low priority due next week
+    await this.createTask({
+      title: "Explore NLP techniques",
+      description: "Learn about text preprocessing, tokenization, and embedding techniques",
+      dueDate: nextWeek.toISOString().split('T')[0],
+      priority: "low",
+      completed: false,
+      category: "NLP",
+      userId: id
+    });
+    
+    // Demo task 4: Completed task
+    await this.createTask({
+      title: "Install Python and necessary libraries",
+      description: "Set up virtual environment with TensorFlow and PyTorch",
+      dueDate: today.toISOString().split('T')[0],
+      priority: "medium",
+      completed: true,
+      category: "Programming",
+      userId: id
+    });
+    
     return user;
   }
 

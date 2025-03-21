@@ -62,7 +62,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       description: task?.description || "",
       dueDate: task?.dueDate || new Date().toISOString().split("T")[0],
       priority: task?.priority as "low" | "medium" | "high" || "medium",
-      category: task?.category || "",
+      category: task?.category || "none",
       completed: task?.completed || false,
       userId: task?.userId || 0,
     },
@@ -76,7 +76,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         description: task.description || "",
         dueDate: task.dueDate,
         priority: task.priority as "low" | "medium" | "high",
-        category: task.category || "",
+        category: task.category || "none",
         completed: task.completed,
         userId: task.userId,
       });
@@ -86,7 +86,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         description: "",
         dueDate: new Date().toISOString().split("T")[0],
         priority: "medium",
-        category: "",
+        category: "none",
         completed: false,
         userId: 0, // Will be set on the server
       });
@@ -173,7 +173,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">No category</SelectItem>
+                      <SelectItem value="none">No category</SelectItem>
                       {CATEGORY_OPTIONS.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
                           {option.label}
