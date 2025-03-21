@@ -6,37 +6,48 @@ interface GoogleUser {
   photoURL: string | null;
 }
 
+// Configure to detect production environment
+const isProduction = import.meta.env.PROD;
+
 export function useGoogleAuth() {
   const [isInitializing, setIsInitializing] = useState(true);
   const [isSigningIn, setIsSigningIn] = useState(false);
 
   useEffect(() => {
-    // Simulate initialization delay
+    // Short initialization delay
     const timeout = setTimeout(() => {
       setIsInitializing(false);
-    }, 500);
+    }, 300);
 
     return () => clearTimeout(timeout);
   }, []);
 
   const signIn = async (): Promise<GoogleUser> => {
     setIsSigningIn(true);
-
+    
     try {
-      // In a real implementation, we would use the Google OAuth client
-      // But for this demo, we'll simulate a successful login
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Return a mock Google user
+      if (isProduction) {
+        // In production, redirect to Google OAuth login endpoint
+        window.location.href = "/api/auth/google/login";
+        // The return statement below won't be reached in production
+        // as the page will navigate away
+      }
+      
+      // For development, simulate a mock login
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Return a mock Google user for development only
       const mockUser: GoogleUser = {
-        email: "user@example.com",
-        displayName: "Demo User",
+        email: "dev@example.com",
+        displayName: "Development User",
         photoURL: null,
       };
-
+      
       return mockUser;
     } finally {
-      setIsSigningIn(false);
+      if (!isProduction) {
+        setIsSigningIn(false);
+      }
     }
   };
 

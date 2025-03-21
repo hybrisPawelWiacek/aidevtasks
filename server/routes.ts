@@ -1,18 +1,47 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
 import express from "express";
 import { insertTaskSchema, taskValidationSchema } from "@shared/schema";
 import { ZodError, z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import passport from "passport";
-import { Strategy as GoogleStrategy } from "passport-local";
+import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import session from "express-session";
 import MemoryStore from "memorystore";
+import rateLimit from "express-rate-limit";
+import dotenv from "dotenv";
+import { PostgresStorage } from "./pg-storage";
+import { initializeDatabase, createDemoTasks } from "./db";
 
+// Initialize environment variables
+dotenv.config();
+
+// Production configuration
+const isProduction = process.env.NODE_ENV === "production";
 const SESSION_SECRET = process.env.SESSION_SECRET || "ai-dev-tasks-secret";
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const CALLBACK_URL = process.env.CALLBACK_URL || "http://localhost:5000/api/auth/google/callback";
+const DOMAIN = process.env.DOMAIN || "localhost";
+
+// Initialize storage
+const storage = new PostgresStorage();
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize database
+  await initializeDatabase();
+
+  // Rate limiting
+  const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  });
+
+  // Apply rate limiting to all API routes
+  app.use("/api", apiLimiter);
+
   // Configure session
   const MemoryStoreSession = MemoryStore(session);
   app.use(
@@ -20,7 +49,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       secret: SESSION_SECRET,
       resave: false,
       saveUninitialized: false,
-      cookie: { secure: process.env.NODE_ENV === "production", maxAge: 86400000 }, // 1 day
+      cookie: { 
+        secure: isProduction, 
+        maxAge: 86400000, // 1 day
+        sameSite: isProduction ? 'none' : 'lax',
+        domain: isProduction ? DOMAIN : undefined
+      },
       store: new MemoryStoreSession({
         checkPeriod: 86400000, // prune expired entries every 24h
       }),
@@ -31,6 +65,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // Configure passport serialization
   passport.serializeUser((user: any, done) => {
     done(null, user.id);
   });
@@ -44,6 +79,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Configure Google OAuth Strategy
+  if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
+    passport.use(new GoogleStrategy({
+      clientID: GOOGLE_CLIENT_ID,
+      clientSecret: GOOGLE_CLIENT_SECRET,
+      callbackURL: CALLBACK_URL,
+      scope: ['profile', 'email']
+    }, async (accessToken, refreshToken, profile, done) => {
+      try {
+        const email = profile.emails?.[0]?.value;
+        const displayName = profile.displayName;
+        const photoURL = profile.photos?.[0]?.value;
+        
+        if (!email) {
+          return done(new Error("Email is required from Google profile"), null);
+        }
+        
+        // Check if user exists
+        let user = await storage.getUserByEmail(email);
+        
+        if (!user) {
+          // Create new user
+          const username = email.split("@")[0];
+          user = await storage.createUser({
+            email,
+            displayName,
+            photoURL,
+            username,
+            googleId: profile.id
+          });
+          
+          // Create demo tasks for new user
+          await createDemoTasks(user.id);
+        }
+        
+        return done(null, user);
+      } catch (error) {
+        console.error("Error in Google OAuth strategy:", error);
+        return done(error as Error, null);
+      }
+    }));
+  } else {
+    console.warn("Google OAuth credentials not found in environment variables");
+    
+    // Fallback to the mock Google login for development if credentials aren't available
+    app.post("/api/auth/google", async (req, res) => {
+      try {
+        const { email, displayName, photoURL } = req.body;
+        
+        // Validate required fields
+        if (!email || !displayName) {
+          return res.status(400).json({ message: "Email and display name are required" });
+        }
+
+        // Check if user exists by email
+        let user = await storage.getUserByEmail(email);
+        
+        // Create user if doesn't exist
+        if (!user) {
+          const username = email.split("@")[0];
+          user = await storage.createUser({
+            email,
+            displayName,
+            photoURL,
+            username,
+            googleId: "google-" + Math.random().toString(36).substring(2, 15)
+          });
+          
+          // Create demo tasks for the new user
+          await createDemoTasks(user.id);
+        }
+        
+        // Set user in session
+        req.login(user, (err) => {
+          if (err) {
+            return res.status(500).json({ message: "Error logging in" });
+          }
+          return res.status(200).json(user);
+        });
+      } catch (error) {
+        console.error("Login error:", error);
+        return res.status(500).json({ message: "Server error during login" });
+      }
+    });
+  }
+
   // Auth middleware
   const requireAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
     if (!req.user) {
@@ -52,44 +173,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     next();
   };
 
-  // Mock Google auth without using actual Google OAuth
-  // A real implementation would use passport-google-oauth20
-  app.post("/api/auth/google", async (req, res) => {
-    try {
-      const { email, displayName, photoURL } = req.body;
-      
-      // Validate required fields
-      if (!email || !displayName) {
-        return res.status(400).json({ message: "Email and display name are required" });
-      }
-
-      // Check if user exists by email
-      let user = await storage.getUserByEmail(email);
-      
-      // Create user if doesn't exist
-      if (!user) {
-        const username = email.split("@")[0];
-        user = await storage.createUser({
-          email,
-          displayName,
-          photoURL,
-          username,
-          googleId: "google-" + Math.random().toString(36).substring(2, 15)
-        });
-      }
-      
-      // Set user in session
-      req.login(user, (err) => {
-        if (err) {
-          return res.status(500).json({ message: "Error logging in" });
-        }
-        return res.status(200).json(user);
-      });
-    } catch (error) {
-      console.error("Login error:", error);
-      return res.status(500).json({ message: "Server error during login" });
-    }
-  });
+  // Google OAuth routes
+  app.get("/api/auth/google/login", passport.authenticate("google"));
+  
+  app.get("/api/auth/google/callback", 
+    passport.authenticate("google", { 
+      failureRedirect: "/login",
+      successRedirect: "/"
+    })
+  );
 
   // Auth status check
   app.get("/api/auth/status", (req, res) => {

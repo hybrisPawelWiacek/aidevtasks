@@ -47,7 +47,10 @@ export class MemStorage implements IStorage {
     const user: User = { 
       ...insertUser, 
       id,
-      password: null
+      password: null,
+      displayName: insertUser.displayName || null,
+      photoURL: insertUser.photoURL || null,
+      googleId: insertUser.googleId || null
     };
     this.users.set(id, user);
     
@@ -117,7 +120,14 @@ export class MemStorage implements IStorage {
 
   async createTask(insertTask: InsertTask): Promise<Task> {
     const id = this.taskIdCounter++;
-    const task: Task = { ...insertTask, id };
+    const task: Task = { 
+      ...insertTask, 
+      id,
+      description: insertTask.description || null,
+      completed: insertTask.completed ?? false,
+      priority: insertTask.priority || "medium",
+      category: insertTask.category || null
+    };
     this.tasks.set(id, task);
     return task;
   }
@@ -128,7 +138,15 @@ export class MemStorage implements IStorage {
       throw new Error(`Task with id ${id} not found`);
     }
 
-    const updatedTask: Task = { ...existingTask, ...updateData, id };
+    const processedUpdateData = {
+      ...updateData,
+      description: updateData.description || null,
+      completed: updateData.completed ?? existingTask.completed,
+      priority: updateData.priority || existingTask.priority,
+      category: updateData.category || null
+    };
+
+    const updatedTask: Task = { ...existingTask, ...processedUpdateData, id };
     this.tasks.set(id, updatedTask);
     return updatedTask;
   }
