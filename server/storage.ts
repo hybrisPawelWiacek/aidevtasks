@@ -1,4 +1,7 @@
 import { users, type User, type InsertUser, tasks, type Task, type InsertTask } from "@shared/schema";
+import { db } from './db';
+import { eq } from 'drizzle-orm';
+import { createDemoTasks } from './db';
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -13,161 +16,104 @@ export interface IStorage {
   deleteTask(id: number): Promise<void>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private tasks: Map<number, Task>;
-  private userIdCounter: number;
-  private taskIdCounter: number;
-
-  constructor() {
-    this.users = new Map();
-    this.tasks = new Map();
-    this.userIdCounter = 1;
-    this.taskIdCounter = 1;
-  }
-
+export class PostgresStorage implements IStorage {
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.email === email
-    );
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.userIdCounter++;
-    const user: User = { 
-      ...insertUser, 
-      id,
-      password: null,
+    // Create the user with required fields
+    const [user] = await db.insert(users).values({
+      username: insertUser.username,
+      email: insertUser.email,
       displayName: insertUser.displayName || null,
       photoURL: insertUser.photoURL || null,
-      googleId: insertUser.googleId || null
-    };
-    this.users.set(id, user);
+      googleId: insertUser.googleId || null,
+      password: null, // We're using OAuth so no password needed
+    }).returning();
     
-    // Create demo tasks for new users
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const nextWeek = new Date(today);
-    nextWeek.setDate(nextWeek.getDate() + 7);
-    
-    // Demo task 1: High priority due today
-    await this.createTask({
-      title: "Set up development environment",
-      description: "Install required tools and dependencies for AI development",
-      dueDate: today.toISOString().split('T')[0],
-      priority: "high",
-      completed: false,
-      category: "Infrastructure",
-      userId: id
-    });
-    
-    // Demo task 2: Medium priority due tomorrow
-    await this.createTask({
-      title: "Review machine learning concepts",
-      description: "Study neural networks, supervised learning, and classification algorithms",
-      dueDate: tomorrow.toISOString().split('T')[0],
-      priority: "medium",
-      completed: false,
-      category: "ML Fundamentals",
-      userId: id
-    });
-    
-    // Demo task 3: Low priority due next week
-    await this.createTask({
-      title: "Explore NLP techniques",
-      description: "Learn about text preprocessing, tokenization, and embedding techniques",
-      dueDate: nextWeek.toISOString().split('T')[0],
-      priority: "low",
-      completed: false,
-      category: "NLP",
-      userId: id
-    });
-    
-    // Demo task 4: Completed task
-    await this.createTask({
-      title: "Install Python and necessary libraries",
-      description: "Set up virtual environment with TensorFlow and PyTorch",
-      dueDate: today.toISOString().split('T')[0],
-      priority: "medium",
-      completed: true,
-      category: "Programming",
-      userId: id
-    });
+    // Create demo tasks for the new user
+    await createDemoTasks(user.id);
     
     return user;
   }
 
   async getTask(id: number): Promise<Task | undefined> {
-    return this.tasks.get(id);
-  }
-
-  async getTasksByUserId(userId: number): Promise<Task[]> {
-    return Array.from(this.tasks.values()).filter(
-      (task) => task.userId === userId
-    );
-  }
-
-  async createTask(insertTask: InsertTask): Promise<Task> {
-    const id = this.taskIdCounter++;
-    const task: Task = { 
-      ...insertTask, 
-      id,
-      description: insertTask.description || null,
-      completed: insertTask.completed ?? false,
-      priority: insertTask.priority || "medium",
-      category: insertTask.category || null
-    };
-    this.tasks.set(id, task);
+    const [task] = await db.select().from(tasks).where(eq(tasks.id, id));
     return task;
   }
 
+  async getTasksByUserId(userId: number): Promise<Task[]> {
+    return await db.select().from(tasks).where(eq(tasks.userId, userId));
+  }
+
+  async createTask(task: InsertTask): Promise<Task> {
+    const [newTask] = await db.insert(tasks).values({
+      title: task.title,
+      description: task.description || null,
+      dueDate: task.dueDate,
+      priority: task.priority || 'medium',
+      completed: task.completed === undefined ? false : task.completed,
+      category: task.category || null,
+      userId: task.userId,
+    }).returning();
+    
+    return newTask;
+  }
+
   async updateTask(id: number, updateData: InsertTask): Promise<Task> {
-    const existingTask = this.tasks.get(id);
-    if (!existingTask) {
+    const [updatedTask] = await db.update(tasks)
+      .set({
+        title: updateData.title,
+        description: updateData.description || null,
+        dueDate: updateData.dueDate,
+        priority: updateData.priority || 'medium',
+        completed: updateData.completed === undefined ? false : updateData.completed,
+        category: updateData.category || null,
+        userId: updateData.userId,
+      })
+      .where(eq(tasks.id, id))
+      .returning();
+    
+    if (!updatedTask) {
       throw new Error(`Task with id ${id} not found`);
     }
-
-    const processedUpdateData = {
-      ...updateData,
-      description: updateData.description || null,
-      completed: updateData.completed ?? existingTask.completed,
-      priority: updateData.priority || existingTask.priority,
-      category: updateData.category || null
-    };
-
-    const updatedTask: Task = { ...existingTask, ...processedUpdateData, id };
-    this.tasks.set(id, updatedTask);
+    
     return updatedTask;
   }
 
   async updateTaskCompletion(id: number, completed: boolean): Promise<Task> {
-    const existingTask = this.tasks.get(id);
-    if (!existingTask) {
+    const [updatedTask] = await db.update(tasks)
+      .set({ completed })
+      .where(eq(tasks.id, id))
+      .returning();
+    
+    if (!updatedTask) {
       throw new Error(`Task with id ${id} not found`);
     }
-
-    const updatedTask: Task = { ...existingTask, completed };
-    this.tasks.set(id, updatedTask);
+    
     return updatedTask;
   }
 
   async deleteTask(id: number): Promise<void> {
-    if (!this.tasks.has(id)) {
+    const result = await db.delete(tasks).where(eq(tasks.id, id)).returning({ id: tasks.id });
+    
+    if (result.length === 0) {
       throw new Error(`Task with id ${id} not found`);
     }
-    this.tasks.delete(id);
   }
 }
 
-export const storage = new MemStorage();
+// Use PostgreSQL storage instead of MemStorage
+export const storage = new PostgresStorage();
