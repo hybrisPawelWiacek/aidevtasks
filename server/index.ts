@@ -8,6 +8,8 @@ import { initializeDatabase } from "./db";
 dotenv.config();
 
 const app = express();
+// Trust proxy headers for running behind Replit's proxy
+app.set('trust proxy', 1);
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 

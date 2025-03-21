@@ -93,7 +93,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const photoURL = profile.photos?.[0]?.value;
         
         if (!email) {
-          return done(new Error("Email is required from Google profile"), null);
+          return done(new Error("Email is required from Google profile"), false);
         }
         
         // Check if user exists
@@ -117,7 +117,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return done(null, user);
       } catch (error) {
         console.error("Error in Google OAuth strategy:", error);
-        return done(error as Error, null);
+        return done(error as Error, false);
       }
     }));
   } else {

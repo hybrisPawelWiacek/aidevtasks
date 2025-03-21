@@ -135,6 +135,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     <Textarea 
                       placeholder="Add details about this task..." 
                       {...field} 
+                      value={field.value || ''}
                       rows={3}
                     />
                   </FormControl>
@@ -164,8 +165,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 <FormItem>
                   <FormLabel>Category</FormLabel>
                   <Select 
-                    onValueChange={field.onChange} 
-                    value={field.value}
+                    onValueChange={field.onChange}
+                    defaultValue={field.value ? field.value : 'none'}
                   >
                     <FormControl>
                       <SelectTrigger>
