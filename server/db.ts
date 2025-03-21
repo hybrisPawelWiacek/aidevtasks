@@ -8,9 +8,13 @@ const { Pool } = pkg;
 // Load environment variables
 dotenv.config();
 
-// Create a PostgreSQL connection pool
+// Create a PostgreSQL connection pool optimized for autoscaling environments
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  max: 20, // Maximum number of clients in the pool
+  idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+  connectionTimeoutMillis: 10000, // Return an error after 10 seconds if connection could not be established
+  maxUses: 7500, // Close and replace a connection after it has been used 7500 times
 });
 
 // Create a Drizzle ORM instance
@@ -104,6 +108,28 @@ export async function createDemoTasks(userId: number) {
     return true;
   } catch (error) {
     console.error('Failed to create demo tasks:', error);
+    return false;
+  }
+}
+
+// Function to initialize the session table for PostgreSQL session store
+export async function initializeSessionTable() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS "session" (
+        "sid" varchar NOT NULL COLLATE "default",
+        "sess" json NOT NULL,
+        "expire" timestamp(6) NOT NULL,
+        CONSTRAINT "session_pkey" PRIMARY KEY ("sid")
+      );
+      
+      CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+    `);
+    
+    console.log('Session table initialized successfully');
+    return true;
+  } catch (error) {
+    console.error('Failed to initialize session table:', error);
     return false;
   }
 }

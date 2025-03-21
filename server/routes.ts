@@ -8,10 +8,11 @@ import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import session from "express-session";
 import MemoryStore from "memorystore";
+import ConnectPgSimple from "connect-pg-simple";
 import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import { PostgresStorage } from "./pg-storage";
-import { initializeDatabase, createDemoTasks } from "./db";
+import { initializeDatabase, createDemoTasks, initializeSessionTable } from "./db";
 
 // Initialize environment variables
 dotenv.config();
@@ -42,24 +43,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Apply rate limiting to all API routes
   app.use("/api", apiLimiter);
 
-  // Configure session
-  const MemoryStoreSession = MemoryStore(session);
-  app.use(
-    session({
-      secret: SESSION_SECRET,
-      resave: false,
-      saveUninitialized: false,
-      cookie: { 
-        secure: isProduction, 
-        maxAge: 86400000, // 1 day
-        sameSite: isProduction ? 'none' : 'lax',
-        domain: isProduction ? DOMAIN : undefined
-      },
-      store: new MemoryStoreSession({
-        checkPeriod: 86400000, // prune expired entries every 24h
-      }),
-    })
-  );
+  // Configure session with PostgreSQL for production or memory for development
+  let sessionConfig: session.SessionOptions = {
+    secret: SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: { 
+      secure: isProduction, 
+      maxAge: 86400000, // 1 day
+      sameSite: isProduction ? 'none' : 'lax',
+      domain: isProduction ? DOMAIN : undefined
+    }
+  };
+  
+  // Use PostgreSQL session store in production for autoscaling support
+  if (isProduction) {
+    const PgSessionStore = ConnectPgSimple(session);
+    
+    // Create session table in the database if it doesn't exist
+    await initializeSessionTable();
+    
+    sessionConfig.store = new PgSessionStore({
+      conString: process.env.DATABASE_URL,
+      tableName: 'session',
+      createTableIfMissing: true,
+      pruneSessionInterval: 24 * 60 * 60 * 1000 // Prune once per day
+    });
+  } else {
+    // Use memory store for development
+    const MemoryStoreSession = MemoryStore(session);
+    sessionConfig.store = new MemoryStoreSession({
+      checkPeriod: 86400000, // prune expired entries every 24h
+    });
+  }
+  
+  app.use(session(sessionConfig));
 
   // Initialize passport
   app.use(passport.initialize());
