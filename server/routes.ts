@@ -64,16 +64,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Configure session with PostgreSQL for production or memory for development
   let sessionConfig: session.SessionOptions = {
     secret: SESSION_SECRET,
-    resave: true, // Changed to true to ensure session is saved on each request
-    saveUninitialized: true, // Changed to true to create session for all users
+    resave: true, // Ensure session is saved on each request
+    saveUninitialized: true, // Create session for all users
     name: 'todo_session', // Give our session cookie a specific name
     cookie: { 
-      secure: true, 
+      secure: isProduction, // Only use secure cookies in production
       maxAge: 86400000, // 1 day
-      sameSite: 'none',
+      sameSite: isProduction ? 'none' : 'lax', // Use 'none' in production for cross-site cookies
       httpOnly: true, // Cookie only accessible via HTTP(S), not JavaScript
       path: '/', // Always set the path for consistency
-      // Remove domain restriction to allow cookies to work on any domain
     }
   };
 
@@ -217,9 +216,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   }
 
-  // Auth middleware
+  // Auth middleware with improved debugging
   const requireAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.log("Auth check:", { 
+      hasUser: !!req.user, 
+      hasSession: !!req.session,
+      sessionID: req.sessionID,
+      cookies: req.headers.cookie,
+      url: req.url,
+      method: req.method,
+      isProduction
+    });
+    
     if (!req.user) {
+      console.log("Unauthorized request:", {
+        path: req.path,
+        method: req.method,
+        headers: {
+          cookie: req.headers.cookie ? "Present" : "Missing",
+          origin: req.headers.origin,
+          referer: req.headers.referer
+        }
+      });
       return res.status(401).json({ message: "Unauthorized" });
     }
     next();
