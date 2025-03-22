@@ -22,6 +22,10 @@ export const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
               src="/logo.png" 
               alt="AI Dev Tasks" 
               className="h-8 object-contain" 
+              onError={(e) => {
+                console.log('Logo failed to load');
+                e.currentTarget.style.display = 'none';
+              }}
             />
           </div>
           
