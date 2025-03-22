@@ -482,6 +482,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if email is already in use
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
+        // If account exists with Google OAuth, provide a specific message
+        if (existingUser.googleId) {
+          return res.status(400).json({ message: "This email is already associated with a Google account. Please sign in with Google." });
+        }
         return res.status(400).json({ message: "Email is already in use" });
       }
       

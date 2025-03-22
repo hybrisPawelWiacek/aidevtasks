@@ -107,6 +107,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email, 
         password 
       });
+      
+      if (!response.ok) {
+        // Parse the error message from the response
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Login failed");
+      }
+      
       return response.json();
     },
     onSuccess: (data) => {
@@ -129,6 +136,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { mutateAsync: registerMutation, isPending: isRegistering } = useMutation({
     mutationFn: async (userData: { email: string; username: string; displayName: string; password: string; confirmPassword: string }) => {
       const response = await apiRequest("POST", "/api/auth/register", userData);
+      
+      if (!response.ok) {
+        // Parse the error message from the response
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Registration failed");
+      }
+      
       return response.json();
     },
     onSuccess: (data) => {
