@@ -38,8 +38,10 @@ export const TasksContainer: React.FC<TasksContainerProps> = ({ userId }) => {
   // Create task mutation
   const { mutate: createTask } = useMutation({
     mutationFn: async (task: Omit<Task, "id">) => {
-      const response = await apiRequest("POST", "/api/tasks", task);
-      return response.json();
+      return await apiRequest<Task>("/api/tasks", {
+        method: "POST",
+        body: task
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
@@ -60,8 +62,10 @@ export const TasksContainer: React.FC<TasksContainerProps> = ({ userId }) => {
   // Update task mutation
   const { mutate: updateTask } = useMutation({
     mutationFn: async (task: Task) => {
-      const response = await apiRequest("PUT", `/api/tasks/${task.id}`, task);
-      return response.json();
+      return await apiRequest<Task>(`/api/tasks/${task.id}`, {
+        method: "PUT",
+        body: task
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
@@ -82,8 +86,10 @@ export const TasksContainer: React.FC<TasksContainerProps> = ({ userId }) => {
   // Update task completion mutation
   const { mutate: updateTaskCompletion } = useMutation({
     mutationFn: async ({ id, completed }: { id: number; completed: boolean }) => {
-      const response = await apiRequest("PATCH", `/api/tasks/${id}/complete`, { completed });
-      return response.json();
+      return await apiRequest<Task>(`/api/tasks/${id}/complete`, {
+        method: "PATCH", 
+        body: { completed }
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
@@ -100,8 +106,9 @@ export const TasksContainer: React.FC<TasksContainerProps> = ({ userId }) => {
   // Delete task mutation
   const { mutate: deleteTask } = useMutation({
     mutationFn: async (id: number) => {
-      const response = await apiRequest("DELETE", `/api/tasks/${id}`);
-      return response.json();
+      return await apiRequest<{ success: boolean }>(`/api/tasks/${id}`, {
+        method: "DELETE"
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });

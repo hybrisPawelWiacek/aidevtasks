@@ -19,19 +19,24 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-export async function apiRequest(
-  method: string,
-  url: string,
-  data?: unknown | undefined,
-): Promise<Response> {
+export async function apiRequest<T = any>(
+  endpoint: string,
+  options?: {
+    method?: string;
+    body?: any;
+  }
+): Promise<T> {
+  const method = options?.method || 'GET';
+  const data = options?.body;
+  
   // Log request details for debugging
-  console.log(`API Request: ${method} ${url}`, data ? {
+  console.log(`API Request: ${method} ${endpoint}`, data ? {
     dataType: typeof data,
     dataPreview: JSON.stringify(data).substring(0, 100) + (JSON.stringify(data).length > 100 ? '...' : '')
   } : 'No data');
   
   try {
-    const res = await fetch(url, {
+    const res = await fetch(endpoint, {
       method,
       headers: {
         ...(data ? { "Content-Type": "application/json" } : {}),
@@ -44,7 +49,7 @@ export async function apiRequest(
       mode: 'cors',
     });
     
-    console.log(`API Response: ${res.status} ${res.statusText} for ${method} ${url}`);
+    console.log(`API Response: ${res.status} ${res.statusText} for ${method} ${endpoint}`);
     
     // For debugging auth - clone the response before consuming it
     if (res.status === 401) {
@@ -52,9 +57,19 @@ export async function apiRequest(
     }
     
     await throwIfResNotOk(res);
-    return res;
+    
+    // Parse JSON response
+    try {
+      const result = await res.json();
+      return result as T;
+    } catch (e) {
+      console.error("Failed to parse response as JSON:", e);
+      const text = await res.clone().text();
+      console.log("Response as text:", text.substring(0, 200));
+      throw new Error("Failed to parse response as JSON");
+    }
   } catch (error) {
-    console.error(`API Request failed: ${method} ${url}`, error);
+    console.error(`API Request failed: ${method} ${endpoint}`, error);
     throw error;
   }
 }

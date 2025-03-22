@@ -71,20 +71,21 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   // Create a category mutation
   const createCategoryMutation = useMutation({
     mutationFn: async (name: string) => {
-      return await apiRequest('/api/categories', {
+      const userId = 0; // Will be set on the server since we're authenticated
+      return await apiRequest<UserCategory>('/api/categories', {
         method: 'POST',
-        body: { name }
+        body: { name, userId }
       });
     },
-    onSuccess: (data) => {
+    onSuccess: (newCategory) => {
       toast({
         title: "Category created",
-        description: `Category "${data.name}" has been created.`,
+        description: `Category "${newCategory.name}" has been created.`,
       });
       // Update the categories list
       queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
       // Set the form to use the new category
-      form.setValue("category", data.name);
+      form.setValue("category", newCategory.name);
       // Reset UI
       setNewCategoryName("");
       setIsAddingCategory(false);
@@ -263,13 +264,85 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="none">No category</SelectItem>
-                      {CATEGORY_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
+                      
+                      {/* Global categories */}
+                      <SelectGroup>
+                        <SelectLabel>Global Categories</SelectLabel>
+                        {GLOBAL_CATEGORY_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                      
+                      {/* User categories */}
+                      {userCategories.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel>My Categories</SelectLabel>
+                          {userCategories.map((category) => (
+                            <SelectItem key={category.id} value={category.name}>
+                              {category.name}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      )}
+                      
+                      {/* Option to add new category */}
+                      <SelectGroup>
+                        <SelectLabel>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="w-full flex items-center justify-start mt-1 px-2 text-blue-600 hover:text-blue-800"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setIsAddingCategory(true);
+                            }}
+                          >
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add new category
+                          </Button>
+                        </SelectLabel>
+                      </SelectGroup>
                     </SelectContent>
                   </Select>
+                  
+                  {/* New category input */}
+                  {isAddingCategory && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <Input
+                        placeholder="Enter new category name"
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button 
+                        type="button" 
+                        size="sm" 
+                        onClick={() => {
+                          if (newCategoryName.trim()) {
+                            createCategoryMutation.mutate(newCategoryName.trim());
+                          }
+                        }}
+                        disabled={createCategoryMutation.isPending || !newCategoryName.trim()}
+                      >
+                        {createCategoryMutation.isPending ? "Adding..." : "Add"}
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => {
+                          setIsAddingCategory(false);
+                          setNewCategoryName("");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
+                  
                   <FormMessage />
                 </FormItem>
               )}
