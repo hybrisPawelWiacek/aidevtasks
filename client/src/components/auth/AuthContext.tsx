@@ -11,6 +11,8 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, displayName: string, photoURL?: string) => Promise<void>;
+  emailLogin: (email: string, password: string) => Promise<void>;
+  register: (userData: { email: string; username: string; displayName: string; password: string; confirmPassword: string }) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -72,7 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [authStatusQuery.data, authStatusQuery.isSuccess]);
 
-  // Login mutation
+  // Google login mutation
   const { mutateAsync: loginMutation, isPending: isLoggingIn } = useMutation({
     mutationFn: async ({ email, displayName, photoURL }: { email: string; displayName: string; photoURL?: string }) => {
       const response = await apiRequest("POST", "/api/auth/google", { 
@@ -92,6 +94,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     onError: (error) => {
       toast({
         title: "Login failed",
+        description: error instanceof Error ? error.message : "Please try again later",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Email login mutation
+  const { mutateAsync: emailLoginMutation, isPending: isEmailLoggingIn } = useMutation({
+    mutationFn: async ({ email, password }: { email: string; password: string }) => {
+      const response = await apiRequest("POST", "/api/auth/login", { 
+        email, 
+        password 
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setUser(data);
+      toast({
+        title: "Logged in successfully",
+        description: `Welcome back, ${data.displayName || data.username}!`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Login failed",
+        description: error instanceof Error ? error.message : "Please try again later",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Registration mutation
+  const { mutateAsync: registerMutation, isPending: isRegistering } = useMutation({
+    mutationFn: async (userData: { email: string; username: string; displayName: string; password: string; confirmPassword: string }) => {
+      const response = await apiRequest("POST", "/api/auth/register", userData);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setUser(data);
+      toast({
+        title: "Registration successful",
+        description: `Welcome, ${data.displayName || data.username}!`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Registration failed",
         description: error instanceof Error ? error.message : "Please try again later",
         variant: "destructive",
       });
@@ -124,11 +173,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await loginMutation({ email, displayName, photoURL });
   };
 
+  const emailLogin = async (email: string, password: string) => {
+    await emailLoginMutation({ email, password });
+  };
+
+  const register = async (userData: { email: string; username: string; displayName: string; password: string; confirmPassword: string }) => {
+    await registerMutation(userData);
+  };
+
   const logout = async () => {
     await logoutMutation();
   };
 
-  const isLoading = isCheckingAuth || isGoogleInitializing || isLoggingIn || isLoggingOut;
+  // Replaced with the more comprehensive isAuthLoading variable
 
   useEffect(() => {
     // Check auth status on mount and periodically refresh if needed
@@ -148,10 +205,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => clearInterval(intervalId);
   }, [checkAuth]);
 
+  const isAuthLoading = isCheckingAuth || isGoogleInitializing || isLoggingIn || isLoggingOut || isEmailLoggingIn || isRegistering;
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
-      {isLoading && <LoadingIndicator isFullscreen />}
-      {!user && !isLoading && <AuthModal isOpen={true} />}
+    <AuthContext.Provider value={{ user, isLoading: isAuthLoading, login, emailLogin, register, logout }}>
+      {isAuthLoading && <LoadingIndicator isFullscreen />}
+      {!user && !isAuthLoading && <AuthModal isOpen={true} />}
       {children}
     </AuthContext.Provider>
   );

@@ -529,7 +529,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate request body
       const validatedData = loginUserSchema.parse(req.body);
       
-      passport.authenticate('local', (err, user, info) => {
+      passport.authenticate('local', (err: any, user: any, info: any) => {
         if (err) {
           return res.status(500).json({ message: "Authentication error" });
         }

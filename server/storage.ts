@@ -32,7 +32,7 @@ export class PostgresStorage implements IStorage {
     return user;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async createUser(insertUser: any): Promise<User> {
     // Create the user with required fields
     const [user] = await db.insert(users).values({
       username: insertUser.username,
@@ -40,11 +40,8 @@ export class PostgresStorage implements IStorage {
       displayName: insertUser.displayName || null,
       photoURL: insertUser.photoURL || null,
       googleId: insertUser.googleId || null,
-      password: null, // We're using OAuth so no password needed
+      password: insertUser.password || null, // Now we support both OAuth and password auth
     }).returning();
-    
-    // Create demo tasks for the new user
-    await createDemoTasks(user.id);
     
     return user;
   }

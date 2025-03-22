@@ -25,7 +25,6 @@ export const tasks = pgTable("tasks", {
 
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
-  password: true,
 });
 
 export const insertTaskSchema = createInsertSchema(tasks).omit({
