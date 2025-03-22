@@ -13,7 +13,7 @@ import ConnectPgSimple from "connect-pg-simple";
 import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { PostgresStorage } from "./pg-storage";
 import { initializeDatabase, createDemoTasks, initializeSessionTable, db } from "./db";
 
@@ -468,18 +468,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Fix by setting a password for this account
             const hashedPassword = await bcrypt.hash(password, 10);
             
-            // Update password in database
-            await storage.updateUser(user.id, { 
-              ...user,
-              password: hashedPassword 
-            });
+            console.log("Original user data:", JSON.stringify({
+              id: user.id, 
+              email: user.email, 
+              hasPassword: !!user.password,
+              hasGoogleId: !!user.googleId
+            }));
             
-            // Update user object with the new password
-            user.password = hashedPassword;
-            console.log("Set password for user:", user.email);
+            // Only update the password field, not the entire user object
+            const userData = { password: hashedPassword };
+            console.log("Updating with data:", JSON.stringify(userData));
             
-            // Continue with the updated user
-            return done(null, user);
+            try {
+              // Update password in database using direct update
+              const result = await db.update(users)
+                .set({ password: hashedPassword })
+                .where(eq(users.id, user.id))
+                .returning();
+              console.log("Update result:", Array.isArray(result) && result.length > 0 ? "Success" : "Failed");
+              
+              // Update user object with the new password
+              user.password = hashedPassword;
+              console.log("Set password for user:", user.email);
+              
+              // Continue with the updated user
+              return done(null, user);
+            } catch (sqlErr) {
+              console.error("SQL update error:", sqlErr);
+              return done(null, false, { message: 'Database error. Please try again later.' });
+            }
           } catch (err) {
             console.error("Failed to update user password:", err);
             return done(null, false, { message: 'Error updating account. Please try again.' });
