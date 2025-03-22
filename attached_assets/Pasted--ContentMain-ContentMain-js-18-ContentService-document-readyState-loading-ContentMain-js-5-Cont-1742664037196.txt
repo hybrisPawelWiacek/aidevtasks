@@ -1,0 +1,194 @@
+[ContentMain]
+ContentMain.js:18 [ContentService] document.readyState: loading
+ContentMain.js:5 [ContentService.ExportExtensionIdForStudioWeb]
+ContentMain.js:5 [ContentService.SetContentInitData] target: { TabId: 1826357605, FrameId: 0}
+index-DT1udDim.js:173 
+            
+            
+           GET https://todo.agenticforce.io/api/auth/status 401 (Unauthorized)
+queryFn @ index-DT1udDim.js:173
+o @ index-DT1udDim.js:48
+w @ index-DT1udDim.js:48
+start @ index-DT1udDim.js:48
+fetch @ index-DT1udDim.js:48
+Hi @ index-DT1udDim.js:48
+onSubscribe @ index-DT1udDim.js:48
+subscribe @ index-DT1udDim.js:48
+(anonymous) @ index-DT1udDim.js:48
+Rb @ index-DT1udDim.js:38
+gc @ index-DT1udDim.js:40
+Oo @ index-DT1udDim.js:40
+Qg @ index-DT1udDim.js:40
+ms @ index-DT1udDim.js:38
+$M @ index-DT1udDim.js:40
+xs @ index-DT1udDim.js:40
+l1 @ index-DT1udDim.js:40
+b @ index-DT1udDim.js:25
+I @ index-DT1udDim.js:25Understand this errorAI
+index-DT1udDim.js:173 No user data in auth status response
+index-DT1udDim.js:173 Attempting login with email: jan.dzban@mail.com
+index-DT1udDim.js:173 API Request: POST /api/auth/login {dataType: 'object', dataPreview: {…}}
+index-DT1udDim.js:173 API Response: 200  for POST /api/auth/login
+index-DT1udDim.js:48 Query Request: /api/tasks
+index-DT1udDim.js:48 
+            
+            
+           GET https://todo.agenticforce.io/api/tasks 401 (Unauthorized)
+(anonymous) @ index-DT1udDim.js:48
+o @ index-DT1udDim.js:48
+w @ index-DT1udDim.js:48
+start @ index-DT1udDim.js:48
+fetch @ index-DT1udDim.js:48
+Hi @ index-DT1udDim.js:48
+onSubscribe @ index-DT1udDim.js:48
+subscribe @ index-DT1udDim.js:48
+(anonymous) @ index-DT1udDim.js:48
+Rb @ index-DT1udDim.js:38
+gc @ index-DT1udDim.js:40
+Oo @ index-DT1udDim.js:40
+Qg @ index-DT1udDim.js:40
+ms @ index-DT1udDim.js:38
+$M @ index-DT1udDim.js:40
+xs @ index-DT1udDim.js:40
+l1 @ index-DT1udDim.js:40
+b @ index-DT1udDim.js:25
+I @ index-DT1udDim.js:25Understand this errorAI
+index-DT1udDim.js:48 Query Response: 401  for /api/tasks
+index-DT1udDim.js:48 Authentication failed for /api/tasks: 401 Unauthorized
+(anonymous) @ index-DT1udDim.js:48
+await in (anonymous)
+o @ index-DT1udDim.js:48
+w @ index-DT1udDim.js:48
+start @ index-DT1udDim.js:48
+fetch @ index-DT1udDim.js:48
+Hi @ index-DT1udDim.js:48
+onSubscribe @ index-DT1udDim.js:48
+subscribe @ index-DT1udDim.js:48
+(anonymous) @ index-DT1udDim.js:48
+Rb @ index-DT1udDim.js:38
+gc @ index-DT1udDim.js:40
+Oo @ index-DT1udDim.js:40
+Qg @ index-DT1udDim.js:40
+ms @ index-DT1udDim.js:38
+$M @ index-DT1udDim.js:40
+xs @ index-DT1udDim.js:40
+l1 @ index-DT1udDim.js:40
+b @ index-DT1udDim.js:25
+I @ index-DT1udDim.js:25Understand this warningAI
+index-DT1udDim.js:48 API error response: {message: 'Unauthorized'}
+Q1 @ index-DT1udDim.js:48
+await in Q1
+(anonymous) @ index-DT1udDim.js:48
+await in (anonymous)
+o @ index-DT1udDim.js:48
+w @ index-DT1udDim.js:48
+start @ index-DT1udDim.js:48
+fetch @ index-DT1udDim.js:48
+Hi @ index-DT1udDim.js:48
+onSubscribe @ index-DT1udDim.js:48
+subscribe @ index-DT1udDim.js:48
+(anonymous) @ index-DT1udDim.js:48
+Rb @ index-DT1udDim.js:38
+gc @ index-DT1udDim.js:40
+Oo @ index-DT1udDim.js:40
+Qg @ index-DT1udDim.js:40
+ms @ index-DT1udDim.js:38
+$M @ index-DT1udDim.js:40
+xs @ index-DT1udDim.js:40
+l1 @ index-DT1udDim.js:40
+b @ index-DT1udDim.js:25
+I @ index-DT1udDim.js:25Understand this errorAI
+index-DT1udDim.js:48 Query failed: /api/tasks TypeError: Failed to execute 'text' on 'Response': body stream already read
+    at Q1 (index-DT1udDim.js:48:42849)
+    at async index-DT1udDim.js:48:43961
+(anonymous) @ index-DT1udDim.js:48
+await in (anonymous)
+o @ index-DT1udDim.js:48
+w @ index-DT1udDim.js:48
+start @ index-DT1udDim.js:48
+fetch @ index-DT1udDim.js:48
+Hi @ index-DT1udDim.js:48
+onSubscribe @ index-DT1udDim.js:48
+subscribe @ index-DT1udDim.js:48
+(anonymous) @ index-DT1udDim.js:48
+Rb @ index-DT1udDim.js:38
+gc @ index-DT1udDim.js:40
+Oo @ index-DT1udDim.js:40
+Qg @ index-DT1udDim.js:40
+ms @ index-DT1udDim.js:38
+$M @ index-DT1udDim.js:40
+xs @ index-DT1udDim.js:40
+l1 @ index-DT1udDim.js:40
+b @ index-DT1udDim.js:25
+I @ index-DT1udDim.js:25Understand this errorAI
+index-DT1udDim.js:217 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+(anonymous) @ index-DT1udDim.js:217
+gc @ index-DT1udDim.js:40
+Oo @ index-DT1udDim.js:40
+$M @ index-DT1udDim.js:40
+xs @ index-DT1udDim.js:40
+Qg @ index-DT1udDim.js:40
+ms @ index-DT1udDim.js:38
+(anonymous) @ index-DT1udDim.js:40Understand this warningAI
+index-DT1udDim.js:48 API Request: POST /api/tasks {dataType: 'object', dataPreview: '{"title":"test 2231","description":"dasda","comple…:false,"priority":"medium","dueDate":"2025-03-...'}
+index-DT1udDim.js:48 
+            
+            
+           POST https://todo.agenticforce.io/api/tasks 401 (Unauthorized)
+To @ index-DT1udDim.js:48
+mutationFn @ index-DT1udDim.js:223
+fn @ index-DT1udDim.js:48
+w @ index-DT1udDim.js:48
+start @ index-DT1udDim.js:48
+execute @ index-DT1udDim.js:48
+await in execute
+mutate @ index-DT1udDim.js:48
+(anonymous) @ index-DT1udDim.js:48
+J @ index-DT1udDim.js:223
+i @ index-DT1udDim.js:217
+(anonymous) @ index-DT1udDim.js:173
+await in (anonymous)
+sD @ index-DT1udDim.js:37
+iD @ index-DT1udDim.js:37
+aD @ index-DT1udDim.js:37
+gg @ index-DT1udDim.js:37
+hb @ index-DT1udDim.js:37
+(anonymous) @ index-DT1udDim.js:37
+wh @ index-DT1udDim.js:40
+FS @ index-DT1udDim.js:37
+fd @ index-DT1udDim.js:37
+Gp @ index-DT1udDim.js:37
+_D @ index-DT1udDim.js:37Understand this errorAI
+index-DT1udDim.js:48 API Response: 401  for POST /api/tasks
+index-DT1udDim.js:48 API error response: {message: 'Unauthorized'}
+Q1 @ index-DT1udDim.js:48
+await in Q1
+To @ index-DT1udDim.js:48
+await in To
+mutationFn @ index-DT1udDim.js:223
+fn @ index-DT1udDim.js:48
+w @ index-DT1udDim.js:48
+start @ index-DT1udDim.js:48
+execute @ index-DT1udDim.js:48
+await in execute
+mutate @ index-DT1udDim.js:48
+(anonymous) @ index-DT1udDim.js:48
+J @ index-DT1udDim.js:223
+i @ index-DT1udDim.js:217
+(anonymous) @ index-DT1udDim.js:173
+await in (anonymous)
+sD @ index-DT1udDim.js:37
+iD @ index-DT1udDim.js:37
+aD @ index-DT1udDim.js:37
+gg @ index-DT1udDim.js:37
+hb @ index-DT1udDim.js:37
+(anonymous) @ index-DT1udDim.js:37
+wh @ index-DT1udDim.js:40
+FS @ index-DT1udDim.js:37
+fd @ index-DT1udDim.js:37
+Gp @ index-DT1udDim.js:37
+_D @ index-DT1udDim.js:37Understand this errorAI
+index-DT1udDim.js:48 API Request failed: POST /api/tasks TypeError: Failed to execute 'text' on 'Response': body stream already read
+    at Q1 (index-DT1udDim.js:48:42849)
+    at async To (index-DT1udDim.js:48:43462)
+    at async Object.mutationFn (index-DT1udDim.js:223:2807)
