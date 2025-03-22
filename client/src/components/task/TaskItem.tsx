@@ -30,9 +30,9 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   };
 
   const priorityClasses: Record<PriorityLevel, string> = {
-    low: "bg-success bg-opacity-10 text-success",
-    medium: "bg-warning bg-opacity-20 text-warning",
-    high: "bg-gray-800 text-white",
+    low: "bg-blue-300 text-white", // Approximating gradient with color variations
+    medium: "bg-blue-500 text-white",
+    high: "bg-blue-700 text-white",
   };
 
   return (

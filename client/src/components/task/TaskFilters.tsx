@@ -40,3 +40,52 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({
     </div>
   );
 };
+
+
+// Added TaskItem component to implement styling requirements
+const TaskItem = ({ task }) => {
+  const priorityColor =
+    task.priority === "high"
+      ? "bg-blue-700 text-white"
+      : task.priority === "medium"
+      ? "bg-blue-500 text-white"
+      : "bg-blue-300 text-white";
+
+  return (
+    <div
+      className={`p-4 rounded-lg border border-gray-200 ${priorityColor} flex items-center justify-between`}
+      style={{
+        background: `linear-gradient(to right, ${
+          task.priority === "low"
+            ? "#ADD8E6"
+            : task.priority === "medium"
+            ? "#64B5F6"
+            : "#2196F3"
+        }, ${
+          task.priority === "low"
+            ? "#B0E0E6"
+            : task.priority === "medium"
+            ? "#90CAF9"
+            : "#1976D2"
+        })`,
+      }}
+    >
+      <div>
+        <p
+          style={{
+            textDecoration: task.status === "Closed" ? "line-through" : "none",
+          }}
+          className="text-gray-800 font-medium"
+        >
+          {task.title}
+        </p>
+        <p className="text-gray-600 text-sm">{task.description}</p>
+      </div>
+      <div className="text-gray-600">
+        <span className="font-medium">{task.dueDate}</span>
+      </div>
+    </div>
+  );
+};
+
+export default TaskItem;
