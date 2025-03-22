@@ -26,7 +26,7 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 // For production, always use the correct callback URL for the deployed app
 const CALLBACK_URL = isProduction 
-  ? "https://todo.agentforce.io/api/auth/google/callback" 
+  ? (process.env.CALLBACK_URL || "https://todo.agenticforce.io/api/auth/google/callback")
   : (process.env.CALLBACK_URL || "http://localhost:5000/api/auth/google/callback");
 
 // Log environment info for debugging
@@ -36,7 +36,7 @@ console.log("Environment Info:", {
   hasClientId: !!GOOGLE_CLIENT_ID,
   hasClientSecret: !!GOOGLE_CLIENT_SECRET
 });
-const DOMAIN = isProduction ? "todo.agentforce.io" : (process.env.DOMAIN || "localhost");
+const DOMAIN = isProduction ? (process.env.DOMAIN || "todo.agenticforce.io") : (process.env.DOMAIN || "localhost");
 
 // Initialize storage
 const storage = new PostgresStorage();
