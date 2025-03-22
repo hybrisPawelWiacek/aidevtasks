@@ -30,9 +30,9 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   };
 
   const priorityClasses: Record<PriorityLevel, string> = {
-    high: "bg-gray-800 text-white",
-    medium: "bg-warning bg-opacity-10 text-warning",
     low: "bg-success bg-opacity-10 text-success",
+    medium: "bg-warning bg-opacity-20 text-warning",
+    high: "bg-gray-800 text-white",
   };
 
   return (
@@ -69,8 +69,8 @@ export const TaskItem: React.FC<TaskItemProps> = ({
         <div className="flex-grow">
           <div className="flex items-center justify-between gap-2 mb-1">
             <h3 className={cn(
-              "font-medium pr-2",
-              task.completed ? "text-gray-600 line-through" : "text-gray-900"
+              "font-medium pr-2 text-gray-900",
+              task.completed && "line-through"
             )}>
               {task.title}
             </h3>
@@ -87,8 +87,8 @@ export const TaskItem: React.FC<TaskItemProps> = ({
           </div>
 
           <p className={cn(
-            "text-sm mb-3",
-            task.completed ? "text-gray-500 line-through" : "text-gray-600"
+            "text-sm mb-3 text-gray-600",
+            task.completed && "line-through"
           )}>
             {task.description}
           </p>
