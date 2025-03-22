@@ -1,15 +1,17 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import express from "express";
-import { insertTaskSchema, taskValidationSchema } from "@shared/schema";
+import { insertTaskSchema, taskValidationSchema, loginUserSchema, registerUserSchema } from "@shared/schema";
 import { ZodError, z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import { Strategy as LocalStrategy } from "passport-local";
 import session from "express-session";
 import pgSession from "connect-pg-simple";
 import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
+import bcrypt from "bcryptjs";
 import { PostgresStorage } from "./pg-storage";
 import { 
   initializeDatabase, 
