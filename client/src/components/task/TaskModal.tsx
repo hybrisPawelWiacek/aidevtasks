@@ -298,6 +298,11 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                             onClick={(e) => {
                               e.preventDefault();
                               setIsAddingCategory(true);
+                              // Close the dropdown when adding a new category
+                              const selectTrigger = document.querySelector('[data-state="open"]');
+                              if (selectTrigger) {
+                                (selectTrigger as HTMLElement).click();
+                              }
                             }}
                           >
                             <Plus className="mr-2 h-4 w-4" />
