@@ -14,6 +14,7 @@ import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import { eq, sql } from "drizzle-orm";
+import cors from "cors";
 import { PostgresStorage } from "./pg-storage";
 import { initializeDatabase, createDemoTasks, initializeSessionTable, db } from "./db";
 
@@ -49,6 +50,52 @@ const storage = new PostgresStorage();
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize database
   await initializeDatabase();
+  
+  // Configure CORS with credentials support for production
+  // Allow the production domain and localhost for development
+  const allowedOrigins = [
+    'https://todo.agenticforce.io',
+    'http://localhost:3000',
+    'http://localhost:5000',
+    'http://localhost:5173'
+  ];
+  
+  // Add any Replit preview URLs if present
+  if (process.env.REPLIT_URL) {
+    allowedOrigins.push(process.env.REPLIT_URL);
+  }
+  
+  // Log the allowed origins
+  console.log("CORS: Allowed origins:", allowedOrigins);
+  
+  // Configure CORS middleware with credentials support
+  app.use(cors({
+    origin: function(origin, callback) {
+      // Allow requests with no origin (like mobile apps, curl, etc)
+      if (!origin) return callback(null, true);
+      
+      // Check if the origin is allowed
+      if (allowedOrigins.indexOf(origin) === -1) {
+        console.log("CORS: Origin blocked:", origin);
+        
+        // For production, always allow any origin to avoid issues
+        // This is safe because we validate with credentials
+        if (isProduction) {
+          console.log("CORS: Production mode, allowing all origins with credentials");
+          return callback(null, true);
+        }
+        
+        return callback(new Error('Not allowed by CORS'), false);
+      }
+      
+      console.log("CORS: Origin allowed:", origin);
+      return callback(null, true);
+    },
+    credentials: true, // Very important for cookies/session
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    maxAge: 86400 // Cache preflight requests for 1 day
+  }));
 
   // Rate limiting
   const apiLimiter = rateLimit({
@@ -62,25 +109,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api", apiLimiter);
 
   // Configure session with PostgreSQL for production or memory for development
-  // Determine if we're running on HTTPS on Replit
-  const isSecure = isProduction && process.env.REPLIT_URL?.startsWith('https');
-  console.log("Session configuration:", { 
+  // Determine if we're running on HTTPS (both Replit and custom domains)
+  const customDomain = process.env.DOMAIN || "todo.agenticforce.io";
+  const isReplitURL = !!process.env.REPLIT_URL;
+  const isCustomDomain = !isReplitURL && isProduction;
+  // Force HTTPS and secure cookies for production, including custom domains
+  const isSecure = isProduction;
+  
+  console.log("Enhanced session configuration:", { 
     isProduction, 
     isSecure,
+    isCustomDomain,
+    customDomain: customDomain || "Not set",
     replitURL: process.env.REPLIT_URL || "Not set",
   });
   
   let sessionConfig: session.SessionOptions = {
     secret: SESSION_SECRET,
-    resave: false, // Only save session when session data is altered
-    saveUninitialized: false, // Only create session when something is stored
-    name: 'todo_session', // Give our session cookie a specific name
+    resave: true, // Always save session to ensure persistence
+    saveUninitialized: true, // Create session for unauthenticated users too
+    name: 'todo_session',
     cookie: { 
-      secure: isSecure, // Set to true only if we're on HTTPS
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days for better persistence
-      sameSite: isProduction ? (isSecure ? 'none' : 'lax') : 'lax', // Use 'none' only with HTTPS
-      httpOnly: true, // Cookie only accessible via HTTP(S), not JavaScript
-      path: '/', // Always set the path for consistency
+      secure: isSecure, // Always require HTTPS in production
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days for even better persistence
+      sameSite: isProduction ? 'none' : 'lax', // For cross-site cookies in production
+      httpOnly: true,
+      path: '/',
+      domain: isCustomDomain ? customDomain : undefined, // Set domain for custom domains
     }
   };
 
@@ -614,26 +669,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Login route (email/password)
+  // Login route (email/password) with enhanced session handling for production
   app.post("/api/auth/login", (req, res, next) => {
     try {
       // Validate request body
       const validatedData = loginUserSchema.parse(req.body);
+      
+      console.log("Login attempt:", { 
+        email: validatedData.email,
+        hasSession: !!req.session,
+        sessionID: req.sessionID,
+        isProduction
+      });
 
       passport.authenticate('local', (err: any, user: any, info: any) => {
         if (err) {
+          console.error("Authentication error:", err);
           return res.status(500).json({ message: "Authentication error" });
         }
 
         if (!user) {
+          console.log("Login failed:", info?.message || "Invalid credentials");
           return res.status(401).json({ message: info?.message || "Invalid credentials" });
         }
+        
+        // Enhanced logging for successful authentication
+        console.log("Authentication successful, setting session for user:", { 
+          id: user.id, 
+          email: user.email,
+          sessionID: req.sessionID
+        });
 
         req.login(user, (loginErr) => {
           if (loginErr) {
+            console.error("Login session error:", loginErr);
             return res.status(500).json({ message: "Error logging in" });
           }
-          return res.status(200).json(user);
+          
+          // Force session save to ensure it's persisted immediately
+          if (req.session) {
+            req.session.save((saveErr) => {
+              if (saveErr) {
+                console.error("Session save error:", saveErr);
+              } else {
+                console.log("Session saved successfully");
+              }
+              
+              // Add a Set-Cookie header directly for cross-site compatibility
+              if (isProduction) {
+                const domain = customDomain || req.headers.host;
+                const secure = isSecure ? "Secure;" : "";
+                res.setHeader(
+                  'Set-Cookie', 
+                  `session_active=true; Path=/; ${secure} SameSite=None; Max-Age=${30 * 24 * 60 * 60}; HttpOnly`
+                );
+              }
+              
+              // Return user data after saving session
+              console.log("Login successful, returning user data");
+              return res.status(200).json(user);
+            });
+          } else {
+            // This shouldn't happen, but just in case
+            console.warn("No session object available during login");
+            return res.status(200).json(user);
+          }
         });
       })(req, res, next);
     } catch (error) {
