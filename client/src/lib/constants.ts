@@ -18,6 +18,6 @@ export const PRIORITY_LEVELS = {
   },
   high: {
     label: "High Priority",
-    color: "bg-destructive bg-opacity-10 text-destructive",
+    color: "bg-gray-800 text-white",
   },
 };
