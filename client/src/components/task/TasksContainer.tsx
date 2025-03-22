@@ -160,6 +160,13 @@ export const TasksContainer: React.FC<TasksContainerProps> = ({ userId }) => {
     return [...filteredTasks].sort(sortTasksByPriorityAndStatus);
   }, [filteredTasks]);
 
+  // Separate active and completed tasks
+  const { activeTasks, completedTasks } = useMemo(() => {
+    const active = sortedTasks.filter(task => !task.completed);
+    const completed = sortedTasks.filter(task => task.completed);
+    return { activeTasks: active, completedTasks: completed };
+  }, [sortedTasks]);
+
   const handleFilterChange = (filter: FilterType) => {
     setActiveFilter(filter);
   };
@@ -244,16 +251,42 @@ export const TasksContainer: React.FC<TasksContainerProps> = ({ userId }) => {
               ))}
             </div>
           ) : sortedTasks.length > 0 ? (
-            <div className="space-y-3">
-              {[...sortedTasks].sort(sortTasksByPriorityAndStatus).map((task) => (
-                <TaskItem
-                  key={task.id}
-                  task={task}
-                  onToggleComplete={handleToggleComplete}
-                  onEdit={handleEditTask}
-                  onDelete={handleDeleteTask}
-                />
-              ))}
+            <div className="space-y-6">
+              {/* Active Tasks Section */}
+              {activeTasks.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 mb-3 uppercase tracking-wider">Active Tasks</h3>
+                  <div className="space-y-3">
+                    {activeTasks.map((task) => (
+                      <TaskItem
+                        key={task.id}
+                        task={task}
+                        onToggleComplete={handleToggleComplete}
+                        onEdit={handleEditTask}
+                        onDelete={handleDeleteTask}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Completed Tasks Section */}
+              {completedTasks.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 mb-3 uppercase tracking-wider">Completed Tasks</h3>
+                  <div className="space-y-3 opacity-80">
+                    {completedTasks.map((task) => (
+                      <TaskItem
+                        key={task.id}
+                        task={task}
+                        onToggleComplete={handleToggleComplete}
+                        onEdit={handleEditTask}
+                        onDelete={handleDeleteTask}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-center py-12">
