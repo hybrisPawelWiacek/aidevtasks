@@ -157,16 +157,16 @@ export const TasksContainer: React.FC<TasksContainerProps> = ({ userId }) => {
       return priorityB - priorityA; // High priority tasks come first
     }
     
-    // Third level: Due date (more recent due date higher)
+    // Third level: Due date (closer dates come first)
     const dateA = a.dueDate ? new Date(a.dueDate).getTime() : 0;
     const dateB = b.dueDate ? new Date(b.dueDate).getTime() : 0;
     
     if (dateA !== dateB) {
-      // For same priority, more recent due date comes first
+      // For same priority, closer due date comes first (today before tomorrow)
       // If one has no due date, it comes last
       if (dateA === 0) return 1;
       if (dateB === 0) return -1;
-      return dateB - dateA;
+      return dateA - dateB; // Reversed from dateB - dateA to prioritize closer dates
     }
     
     // Fourth level: Content completeness
