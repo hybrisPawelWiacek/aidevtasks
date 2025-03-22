@@ -68,25 +68,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     saveUninitialized: true, // Changed to true to create session for all users
     name: 'todo_session', // Give our session cookie a specific name
     cookie: { 
-      secure: isProduction, 
+      secure: true, 
       maxAge: 86400000, // 1 day
-      sameSite: isProduction ? 'none' : 'lax',
+      sameSite: 'none',
       httpOnly: true, // Cookie only accessible via HTTP(S), not JavaScript
       path: '/', // Always set the path for consistency
-      // Set the domain for production to ensure cookies work correctly
-      ...(isProduction && {
-        domain: '.agenticforce.io', // Use the root domain to allow sharing across subdomains
-      })
+      domain: '.repl.co', // Allow the cookie to work across repl.co subdomains
     }
   };
-  
+
   // Use PostgreSQL session store in production for autoscaling support
   if (isProduction) {
     const PgSessionStore = ConnectPgSimple(session);
-    
+
     // Create session table in the database if it doesn't exist
     await initializeSessionTable();
-    
+
     sessionConfig.store = new PgSessionStore({
       conString: process.env.DATABASE_URL,
       tableName: 'session',
@@ -100,7 +97,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       checkPeriod: 86400000, // prune expired entries every 24h
     });
   }
-  
+
   app.use(session(sessionConfig));
 
   // Initialize passport
@@ -134,26 +131,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       userProfileURL: 'https://www.googleapis.com/oauth2/v3/userinfo',
       proxy: false
     };
-    
+
     console.log("Google Strategy Options:", {
       ...googleStrategyOptions,
       clientSecret: "[REDACTED]" // Don't log actual secret
     });
-    
+
     passport.use(new GoogleStrategy(googleStrategyOptions, 
     async (accessToken, refreshToken, profile, done) => {
       try {
         const email = profile.emails?.[0]?.value;
         const displayName = profile.displayName;
         const photoURL = profile.photos?.[0]?.value;
-        
+
         if (!email) {
           return done(new Error("Email is required from Google profile"), false);
         }
-        
+
         // Check if user exists
         let user = await storage.getUserByEmail(email);
-        
+
         if (!user) {
           // Create new user
           const username = email.split("@")[0];
@@ -164,11 +161,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             username,
             googleId: profile.id
           });
-          
+
           // Create demo tasks for new user
           await createDemoTasks(user.id);
         }
-        
+
         return done(null, user);
       } catch (error) {
         console.error("Error in Google OAuth strategy:", error);
@@ -177,12 +174,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }));
   } else {
     console.warn("Google OAuth credentials not found in environment variables");
-    
+
     // Fallback to the mock Google login for development if credentials aren't available
     app.post("/api/auth/google", async (req, res) => {
       try {
         const { email, displayName, photoURL } = req.body;
-        
+
         // Validate required fields
         if (!email || !displayName) {
           return res.status(400).json({ message: "Email and display name are required" });
@@ -190,7 +187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Check if user exists by email
         let user = await storage.getUserByEmail(email);
-        
+
         // Create user if doesn't exist
         if (!user) {
           const username = email.split("@")[0];
@@ -201,11 +198,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             username,
             googleId: "google-" + Math.random().toString(36).substring(2, 15)
           });
-          
+
           // Create demo tasks for the new user
           await createDemoTasks(user.id);
         }
-        
+
         // Set user in session
         req.login(user, (err) => {
           if (err) {
@@ -239,7 +236,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const envRedirectUri = process.env.REDIRECT_URI;
       const envJsOrigin = process.env.JAVASCRIPT_ORIGIN;
       const envDomain = process.env.DOMAIN;
-      
+
       // Log OAuth state for debugging with detailed information
       console.log("OAuth environment check:", {
         envClientIdExists: !!envClientId,
@@ -252,7 +249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         nodeEnv: process.env.NODE_ENV,
         replitEnv: process.env.REPLIT_ENVIRONMENT
       });
-      
+
       console.log("OAuth request details:", {
         isProduction,
         clientIDExists: !!GOOGLE_CLIENT_ID,
@@ -264,7 +261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         protocol: req.protocol,
         secure: req.secure
       });
-      
+
       // Use a different approach for the initial auth step
       const authURL = new URL('https://accounts.google.com/o/oauth2/v2/auth');
       const params = {
@@ -276,24 +273,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         prompt: 'select_account',  // Force account selection even if already logged in
         state: Math.random().toString(36).substring(2)  // Simple state param for CSRF protection
       };
-      
+
       // Log actual parameters used for the request
       console.log("OAuth parameters:", {
         ...params,
         client_id_length: params.client_id.length,
         redirect_uri: params.redirect_uri
       });
-      
+
       // Set state in session for later verification
       if (req.session) {
         (req.session as any).oauthState = params.state;
       }
-      
+
       // Add parameters to URL
       Object.entries(params).forEach(([key, value]) => {
         authURL.searchParams.append(key, value);
       });
-      
+
       // Redirect user to Google OAuth
       console.log("Redirecting to OAuth URL:", authURL.toString());
       return res.redirect(authURL.toString());
@@ -302,7 +299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.redirect("/login?error=" + encodeURIComponent(`OAuth Error: ${error.message}`));
     }
   });
-  
+
   app.get("/api/auth/google/callback", async (req, res, next) => {
     console.log("Received Google OAuth callback", {
       query: req.query,
@@ -311,23 +308,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         referer: req.headers.referer,
       }
     });
-    
+
     // Check for error from Google
     if (req.query.error) {
       console.error("Google OAuth error response:", req.query.error);
       return res.redirect("/login?error=" + encodeURIComponent(String(req.query.error)));
     }
-    
+
     // Check for authorization code
     if (!req.query.code) {
       console.error("No authorization code received from Google");
       return res.redirect("/login?error=no_authorization_code");
     }
-    
+
     try {
       // Log the token exchange attempt
       console.log("Attempting token exchange with code length:", String(req.query.code).length);
-      
+
       // Manual token exchange rather than using passport directly
       const tokenURL = 'https://oauth2.googleapis.com/token';
       const tokenParams = new URLSearchParams({
@@ -337,7 +334,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         redirect_uri: CALLBACK_URL,
         grant_type: 'authorization_code'
       });
-      
+
       // Log the token request parameters (safely)
       console.log("Token request parameters:", {
         url: tokenURL,
@@ -346,7 +343,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         client_secret_exists: !!GOOGLE_CLIENT_SECRET,
         redirect_uri: CALLBACK_URL
       });
-      
+
       // Make the token request
       const tokenResponse = await fetch(tokenURL, {
         method: 'POST',
@@ -355,10 +352,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         body: tokenParams.toString()
       });
-      
+
       // Log response status
       console.log("Token response status:", tokenResponse.status, tokenResponse.statusText);
-      
+
       if (!tokenResponse.ok) {
         const errorText = await tokenResponse.text();
         let errorData;
@@ -371,45 +368,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
           errorData = errorText;
           console.error("Token exchange failed (text):", errorData);
         }
-        
+
         // Construct a detailed error message
         const errorDetails = typeof errorData === 'object' ? 
           `${errorData.error}: ${errorData.error_description || 'No description'}` : 
           errorData;
-          
+
         return res.redirect("/login?error=" + encodeURIComponent(`Token exchange failed: ${errorDetails}`));
       }
-      
+
       const tokenData = await tokenResponse.json();
-      
+
       // Get user profile using the access token
       const userResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
         headers: {
           'Authorization': `Bearer ${tokenData.access_token}`
         }
       });
-      
+
       if (!userResponse.ok) {
         const errorData = await userResponse.text();
         console.error("User info request failed:", errorData);
         return res.redirect("/login?error=" + encodeURIComponent(`User info request failed: ${errorData}`));
       }
-      
+
       const userData = await userResponse.json();
-      
+
       // Process user data
       const email = userData.email;
       const displayName = userData.name;
       const photoURL = userData.picture;
       const googleId = userData.sub;
-      
+
       if (!email) {
         return res.redirect("/login?error=" + encodeURIComponent("Email is required from Google profile"));
       }
-      
+
       // Check if user exists
       let user = await storage.getUserByEmail(email);
-      
+
       if (!user) {
         // Create new user
         const username = email.split("@")[0];
@@ -420,11 +417,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           username,
           googleId
         });
-        
+
         // Create demo tasks for new user
         await createDemoTasks(user.id);
       }
-      
+
       // Log in the user
       req.login(user, (loginErr) => {
         if (loginErr) {
@@ -449,36 +446,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         // Find user by email
         const user = await storage.getUserByEmail(email);
-        
+
         // Check if user exists
         if (!user) {
           return done(null, false, { message: 'Invalid email or password' });
         }
-        
+
         // Check if the user has a Google account but no password
         if (user.googleId && (!user.password || user.password === '')) {
           return done(null, false, { message: 'This account uses Google Sign-In. Please sign in with Google.' });
         }
-        
+
         // Check if user has a password
         if (!user.password || user.password === '') {
           console.log("User has no password but trying to login:", user.email);
-          
+
           try {
             // Fix by setting a password for this account
             const hashedPassword = await bcrypt.hash(password, 10);
-            
+
             console.log("Original user data:", JSON.stringify({
               id: user.id, 
               email: user.email, 
               hasPassword: !!user.password,
               hasGoogleId: !!user.googleId
             }));
-            
+
             // Only update the password field, not the entire user object
             const userData = { password: hashedPassword };
             console.log("Updating with data:", JSON.stringify(userData));
-            
+
             try {
               // Update password in database using direct update
               const result = await db.update(users)
@@ -486,11 +483,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 .where(eq(users.id, user.id))
                 .returning();
               console.log("Update result:", Array.isArray(result) && result.length > 0 ? "Success" : "Failed");
-              
+
               // Update user object with the new password
               user.password = hashedPassword;
               console.log("Set password for user:", user.email);
-              
+
               // Continue with the updated user
               return done(null, user);
             } catch (sqlErr) {
@@ -502,13 +499,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return done(null, false, { message: 'Error updating account. Please try again.' });
           }
         }
-        
+
         // Verify password
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
           return done(null, false, { message: 'Invalid email or password' });
         }
-        
+
         return done(null, user);
       } catch (error) {
         console.error("Error in local strategy:", error);
@@ -516,14 +513,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   ));
-  
+
   // Register route (email/password)
   app.post("/api/auth/register", async (req, res) => {
     try {
       // Validate request body
       const validatedData = registerUserSchema.parse(req.body);
       const { email, password, confirmPassword, ...userData } = validatedData;
-      
+
       // Check if email is already in use
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
@@ -533,31 +530,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         return res.status(400).json({ message: "Email is already in use" });
       }
-      
+
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
-      
+
       // Generate username if not provided
       if (!userData.username) {
         userData.username = email.split("@")[0];
       }
-      
+
       // Create new user
       const user = await storage.createUser({
         ...userData,
         email,
         password: hashedPassword,
       });
-      
+
       // Create demo tasks for new user
       await createDemoTasks(user.id);
-      
+
       // Log in the user
       req.login(user, (err) => {
         if (err) {
           return res.status(500).json({ message: "Error logging in after registration" });
         }
-        
+
         // Return user without password
         const { password, ...userWithoutPassword } = user;
         return res.status(201).json(userWithoutPassword);
@@ -571,22 +568,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: "Server error during registration" });
     }
   });
-  
+
   // Login route (email/password)
   app.post("/api/auth/login", (req, res, next) => {
     try {
       // Validate request body
       const validatedData = loginUserSchema.parse(req.body);
-      
+
       passport.authenticate('local', (err: any, user: any, info: any) => {
         if (err) {
           return res.status(500).json({ message: "Authentication error" });
         }
-        
+
         if (!user) {
           return res.status(401).json({ message: info?.message || "Invalid credentials" });
         }
-        
+
         req.login(user, (loginErr) => {
           if (loginErr) {
             return res.status(500).json({ message: "Error logging in" });
@@ -611,7 +608,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     return res.status(401).json({ message: "Not authenticated" });
   });
-  
+
   // OAuth configuration check endpoint (for diagnostic purposes)
   app.get("/api/auth/config-check", (req, res) => {
     try {
@@ -622,7 +619,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const envRedirectUri = process.env.REDIRECT_URI;
       const envJsOrigin = process.env.JAVASCRIPT_ORIGIN;
       const envDomain = process.env.DOMAIN;
-      
+
       // Return sanitized configuration (no secrets)
       return res.status(200).json({
         oauth: {
@@ -675,10 +672,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req.user as any).id;
       const taskData = { ...req.body, userId };
-      
+
       // Validate task data
       const validatedData = taskValidationSchema.parse(taskData);
-      
+
       const task = await storage.createTask(validatedData);
       return res.status(201).json(task);
     } catch (error) {
@@ -696,21 +693,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req.user as any).id;
       const taskId = parseInt(req.params.id);
-      
+
       // Check if task exists and belongs to user
       const existingTask = await storage.getTask(taskId);
       if (!existingTask) {
         return res.status(404).json({ message: "Task not found" });
       }
-      
+
       if (existingTask.userId !== userId) {
         return res.status(403).json({ message: "Not authorized to update this task" });
       }
-      
+
       // Validate task data
       const taskData = { ...req.body, userId };
       const validatedData = taskValidationSchema.parse(taskData);
-      
+
       const updatedTask = await storage.updateTask(taskId, validatedData);
       return res.status(200).json(updatedTask);
     } catch (error) {
@@ -728,17 +725,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req.user as any).id;
       const taskId = parseInt(req.params.id);
-      
+
       // Check if task exists and belongs to user
       const existingTask = await storage.getTask(taskId);
       if (!existingTask) {
         return res.status(404).json({ message: "Task not found" });
       }
-      
+
       if (existingTask.userId !== userId) {
         return res.status(403).json({ message: "Not authorized to delete this task" });
       }
-      
+
       await storage.deleteTask(taskId);
       return res.status(200).json({ message: "Task deleted successfully" });
     } catch (error) {
@@ -753,21 +750,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = (req.user as any).id;
       const taskId = parseInt(req.params.id);
       const { completed } = req.body;
-      
+
       if (typeof completed !== 'boolean') {
         return res.status(400).json({ message: "Completed status must be a boolean" });
       }
-      
+
       // Check if task exists and belongs to user
       const existingTask = await storage.getTask(taskId);
       if (!existingTask) {
         return res.status(404).json({ message: "Task not found" });
       }
-      
+
       if (existingTask.userId !== userId) {
         return res.status(403).json({ message: "Not authorized to update this task" });
       }
-      
+
       const updatedTask = await storage.updateTaskCompletion(taskId, completed);
       return res.status(200).json(updatedTask);
     } catch (error) {
