@@ -50,8 +50,8 @@ A modern, AI-enhanced todo application designed for developers, featuring advanc
 
 1. Clone the repository
    ```
-   git clone <repository-url>
-   cd taskhub
+   git clone https://github.com/hybrisPawelWiacek/aidevtasks.git
+   cd aidevtasks
    ```
 
 2. Install dependencies
