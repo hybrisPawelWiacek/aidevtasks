@@ -41,7 +41,8 @@ export class PostgresStorage implements IStorage {
       displayName: insertUser.displayName || null,
       photoURL: insertUser.photoURL || null,
       googleId: insertUser.googleId || null,
-      password: insertUser.password || null, // Now we support both OAuth and password auth
+      password: insertUser.password || null, // For compatibility
+      password_hash: insertUser.password_hash || null, // For storing secure password hash
     }).returning();
     
     return user;
@@ -63,6 +64,7 @@ export class PostgresStorage implements IStorage {
         photoURL: userData.photoURL !== undefined ? userData.photoURL : existingUser.photoURL,
         googleId: userData.googleId !== undefined ? userData.googleId : existingUser.googleId,
         password: userData.password !== undefined ? userData.password : existingUser.password,
+        password_hash: (userData as any).password_hash !== undefined ? (userData as any).password_hash : (existingUser as any).password_hash,
       })
       .where(eq(users.id, id))
       .returning();

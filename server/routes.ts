@@ -228,12 +228,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // User exists, check password
-        if (!user.passwordHash) {
+        if (!user.password_hash) {
           return done(null, false, { message: "This account doesn't have a password set" });
         }
         
         // Compare passwords
-        const isMatch = await bcrypt.compare(password, user.passwordHash);
+        const isMatch = await bcrypt.compare(password, user.password_hash);
         
         if (!isMatch) {
           return done(null, false, { message: "Invalid email or password" });
@@ -314,7 +314,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         email: registerData.email,
         username: registerData.username,
         displayName: registerData.displayName,
-        passwordHash
+        password_hash: passwordHash
       });
       
       // Create demo tasks for new user
