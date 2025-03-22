@@ -45,7 +45,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user, onLogout }) => {
   };
 
   return (
-    <div className="relative" ref={menuRef}>
+    <div className="relative flex justify-end" ref={menuRef}>
       <button 
         className="flex items-center gap-2" 
         onClick={toggleUserMenu}
