@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { SiGoogle } from 'react-icons/si';
+import { useToast } from '@/hooks/use-toast';
 
 interface LoginButtonProps {
   onMockLogin?: () => void;
@@ -11,15 +12,36 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
   onMockLogin,
   isProduction = import.meta.env.PROD
 }) => {
+  const { toast } = useToast();
+  
   const handleLogin = () => {
-    if (isProduction) {
-      // In production, redirect to Google OAuth login
-      window.location.href = '/api/auth/google/login';
-    } else {
-      // In development, use mock login if available
-      if (onMockLogin) {
-        onMockLogin();
+    try {
+      console.log("LoginButton: handleLogin called, isProduction:", isProduction);
+      
+      if (isProduction) {
+        // In production, redirect to Google OAuth login
+        toast({
+          title: "Redirecting to Google...",
+          description: "Please wait while we redirect you to Google for authentication.",
+        });
+        
+        // Add a small delay to allow toast to show
+        setTimeout(() => {
+          window.location.href = '/api/auth/google/login';
+        }, 500);
+      } else {
+        // In development, use mock login if available
+        if (onMockLogin) {
+          onMockLogin();
+        }
       }
+    } catch (error) {
+      console.error("Error during login process:", error);
+      toast({
+        variant: "destructive",
+        title: "Login Error",
+        description: "Failed to initiate login. Please try again.",
+      });
     }
   };
 

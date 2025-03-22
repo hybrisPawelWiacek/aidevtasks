@@ -222,20 +222,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/auth/google/login", (req, res, next) => {
     console.log("Starting Google OAuth login flow...");
     try {
-      passport.authenticate("google", (err: Error | null) => {
-        if (err) {
-          console.error("Error initiating Google OAuth:", err);
-          return res.redirect("/login?error=" + encodeURIComponent(err.message));
-        }
-        next();
-      })(req, res, next);
+      // Log OAuth state for debugging
+      console.log("OAuth configuration:", {
+        isProduction,
+        clientIDExists: !!GOOGLE_CLIENT_ID,
+        clientSecretExists: !!GOOGLE_CLIENT_SECRET,
+        callbackURL: CALLBACK_URL,
+        host: req.headers.host,
+        origin: req.headers.origin || 'unknown'
+      });
+      
+      // Use a different approach for the initial auth step
+      const authURL = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+      const params = {
+        client_id: GOOGLE_CLIENT_ID || '',
+        redirect_uri: CALLBACK_URL,
+        response_type: 'code',
+        scope: 'email profile',
+        access_type: 'online',
+        state: Math.random().toString(36).substring(2)  // Simple state param for CSRF protection
+      };
+      
+      // Set state in session for later verification
+      if (req.session) {
+        (req.session as any).oauthState = params.state;
+      }
+      
+      // Add parameters to URL
+      Object.entries(params).forEach(([key, value]) => {
+        authURL.searchParams.append(key, value);
+      });
+      
+      // Redirect user to Google OAuth
+      console.log("Redirecting to OAuth URL:", authURL.toString());
+      return res.redirect(authURL.toString());
     } catch (error: any) { // Using any here because error can be of different types
       console.error("Critical error in Google OAuth login:", error);
-      res.status(500).send(`OAuth Error: ${error.message}`);
+      return res.redirect("/login?error=" + encodeURIComponent(`OAuth Error: ${error.message}`));
     }
   });
   
-  app.get("/api/auth/google/callback", (req, res, next) => {
+  app.get("/api/auth/google/callback", async (req, res, next) => {
     console.log("Received Google OAuth callback", {
       query: req.query,
       headers: {
@@ -244,20 +271,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
     
-    passport.authenticate("google", { 
-      failureRedirect: "/login?error=authentication_failed",
-      successRedirect: "/"
-    }, (err: Error | null, user: any) => {
-      if (err) {
-        console.error("Error during Google OAuth callback handling:", err);
-        return res.redirect("/login?error=" + encodeURIComponent(err.message));
+    // Check for error from Google
+    if (req.query.error) {
+      console.error("Google OAuth error response:", req.query.error);
+      return res.redirect("/login?error=" + encodeURIComponent(String(req.query.error)));
+    }
+    
+    // Check for authorization code
+    if (!req.query.code) {
+      console.error("No authorization code received from Google");
+      return res.redirect("/login?error=no_authorization_code");
+    }
+    
+    try {
+      // Manual token exchange rather than using passport directly
+      const tokenURL = 'https://oauth2.googleapis.com/token';
+      const tokenParams = new URLSearchParams({
+        code: String(req.query.code),
+        client_id: GOOGLE_CLIENT_ID || '',
+        client_secret: GOOGLE_CLIENT_SECRET || '',
+        redirect_uri: CALLBACK_URL,
+        grant_type: 'authorization_code'
+      });
+      
+      // Make the token request
+      const tokenResponse = await fetch(tokenURL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: tokenParams.toString()
+      });
+      
+      if (!tokenResponse.ok) {
+        const errorData = await tokenResponse.text();
+        console.error("Token exchange failed:", errorData);
+        return res.redirect("/login?error=" + encodeURIComponent(`Token exchange failed: ${errorData}`));
       }
+      
+      const tokenData = await tokenResponse.json();
+      
+      // Get user profile using the access token
+      const userResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: {
+          'Authorization': `Bearer ${tokenData.access_token}`
+        }
+      });
+      
+      if (!userResponse.ok) {
+        const errorData = await userResponse.text();
+        console.error("User info request failed:", errorData);
+        return res.redirect("/login?error=" + encodeURIComponent(`User info request failed: ${errorData}`));
+      }
+      
+      const userData = await userResponse.json();
+      
+      // Process user data
+      const email = userData.email;
+      const displayName = userData.name;
+      const photoURL = userData.picture;
+      const googleId = userData.sub;
+      
+      if (!email) {
+        return res.redirect("/login?error=" + encodeURIComponent("Email is required from Google profile"));
+      }
+      
+      // Check if user exists
+      let user = await storage.getUserByEmail(email);
       
       if (!user) {
-        console.error("No user returned from Google OAuth");
-        return res.redirect("/login?error=no_user_returned");
+        // Create new user
+        const username = email.split("@")[0];
+        user = await storage.createUser({
+          email,
+          displayName,
+          photoURL,
+          username,
+          googleId
+        });
+        
+        // Create demo tasks for new user
+        await createDemoTasks(user.id);
       }
       
+      // Log in the user
       req.login(user, (loginErr) => {
         if (loginErr) {
           console.error("Error during login after OAuth:", loginErr);
@@ -265,7 +362,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         return res.redirect("/");
       });
-    })(req, res, next);
+    } catch (error: any) {
+      console.error("Error during OAuth callback processing:", error);
+      return res.redirect("/login?error=" + encodeURIComponent(`OAuth callback error: ${error.message}`));
+    }
   });
 
   // Auth status check
