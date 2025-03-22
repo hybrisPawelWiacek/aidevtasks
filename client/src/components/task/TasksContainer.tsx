@@ -19,14 +19,14 @@ interface TasksContainerProps {
 export const TasksContainer: React.FC<TasksContainerProps> = ({ userId }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [sortOption, setSortOption] = useState<SortOption>("date-desc");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | undefined>(undefined);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<number | null>(null);
-  
+
   // Fetch tasks
   const { data: tasks = [], isLoading } = useQuery<Task[]>({
     queryKey: ["/api/tasks"],
@@ -141,28 +141,24 @@ export const TasksContainer: React.FC<TasksContainerProps> = ({ userId }) => {
     });
   }, [tasks, activeFilter]);
 
-  // Sort tasks
+  // Custom sort function
+  const sortTasksByPriorityAndStatus = (a: Task, b: Task) => {
+    const priorityOrder = { high: 3, medium: 2, low: 1 };
+    const priorityA = priorityOrder[a.priority] || 0;
+    const priorityB = priorityOrder[b.priority] || 0;
+
+    if (a.completed !== b.completed) {
+      return a.completed ? 1 : -1; // Completed tasks come after open tasks
+    } else {
+      return priorityB - priorityA; // High priority tasks come first
+    }
+  };
+
+
+  // Sort tasks (using the new custom sort function)
   const sortedTasks = useMemo(() => {
-    return [...filteredTasks].sort((a, b) => {
-      if (sortOption === "date-asc") {
-        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-      }
-      if (sortOption === "date-desc") {
-        return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
-      }
-      if (sortOption === "priority") {
-        const priorityValue = { high: 3, medium: 2, low: 1 };
-        return (
-          (priorityValue[b.priority as "high" | "medium" | "low"] || 0) -
-          (priorityValue[a.priority as "high" | "medium" | "low"] || 0)
-        );
-      }
-      if (sortOption === "alphabetical") {
-        return a.title.localeCompare(b.title);
-      }
-      return 0;
-    });
-  }, [filteredTasks, sortOption]);
+    return [...filteredTasks].sort(sortTasksByPriorityAndStatus);
+  }, [filteredTasks]);
 
   const handleFilterChange = (filter: FilterType) => {
     setActiveFilter(filter);
@@ -227,7 +223,7 @@ export const TasksContainer: React.FC<TasksContainerProps> = ({ userId }) => {
           <TaskFilters activeFilter={activeFilter} onFilterChange={handleFilterChange} />
         </div>
       </div>
-      
+
       {/* Task List */}
       <div className="flex-grow overflow-y-auto custom-scrollbar px-4 py-4 bg-gray-50">
         <div className="container mx-auto max-w-3xl">
@@ -236,10 +232,10 @@ export const TasksContainer: React.FC<TasksContainerProps> = ({ userId }) => {
             <h2 className="text-lg font-semibold text-gray-800">
               {sortedTasks.length} {sortedTasks.length === 1 ? "Task" : "Tasks"}
             </h2>
-            
+
             <TaskSort sortOption={sortOption} onSortChange={handleSortChange} />
           </div>
-          
+
           {/* Task List */}
           {isLoading ? (
             <div className="space-y-3">
@@ -249,7 +245,7 @@ export const TasksContainer: React.FC<TasksContainerProps> = ({ userId }) => {
             </div>
           ) : sortedTasks.length > 0 ? (
             <div className="space-y-3">
-              {sortedTasks.map((task) => (
+              {[...sortedTasks].sort(sortTasksByPriorityAndStatus).map((task) => (
                 <TaskItem
                   key={task.id}
                   task={task}
@@ -266,7 +262,7 @@ export const TasksContainer: React.FC<TasksContainerProps> = ({ userId }) => {
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-1">No tasks found</h3>
               <p className="text-gray-500 mb-6">There are no tasks matching your current filter.</p>
-              <button 
+              <button
                 className="px-4 py-2 bg-primary-500 text-white font-medium rounded-lg hover:bg-primary-600 transition-colors"
                 onClick={handleAddTaskClick}
               >
@@ -276,10 +272,10 @@ export const TasksContainer: React.FC<TasksContainerProps> = ({ userId }) => {
           )}
         </div>
       </div>
-      
+
       {/* Add Task Button */}
       <AddTaskButton onClick={handleAddTaskClick} />
-      
+
       {/* Task Modal */}
       <TaskModal
         isOpen={isModalOpen}
@@ -287,7 +283,7 @@ export const TasksContainer: React.FC<TasksContainerProps> = ({ userId }) => {
         onSave={handleSaveTask}
         onClose={() => setIsModalOpen(false)}
       />
-      
+
       {/* Confirm Dialog */}
       <ConfirmDialog
         isOpen={isConfirmOpen}

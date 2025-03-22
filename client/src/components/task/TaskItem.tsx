@@ -35,8 +35,17 @@ export const TaskItem: React.FC<TaskItemProps> = ({
     high: "bg-blue-700 text-white",
   };
 
+  // Adding data attributes to help with sorting
+  const priorityValue = task.priority === "high" ? 3 : task.priority === "medium" ? 2 : 1;
+  const sortOrder = task.completed || task.status === "Closed" ? `closed-${priorityValue}` : `open-${priorityValue}`;
+
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-4">
+    <div 
+      className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-4"
+      data-completed={task.completed || task.status === "Closed" ? "true" : "false"}
+      data-priority={task.priority}
+      data-sort-order={sortOrder}
+    >
       <div className="flex items-start gap-3">
         {/* Task Checkbox */}
         <button 
