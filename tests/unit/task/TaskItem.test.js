@@ -1,6 +1,6 @@
-const { describe, it, expect, jest } = require('@jest/globals');
-const { render, screen, fireEvent } = require('@testing-library/react');
-const { TaskItem } = require('@/components/task/TaskItem');
+import { describe, it, expect, jest } from '@jest/globals';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { TaskItem } from '@/components/task/TaskItem';
 
 // Mock the dateUtils functions
 jest.mock('@/lib/dateUtils', () => ({

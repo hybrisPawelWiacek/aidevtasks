@@ -1,5 +1,6 @@
 // Import testing-library extensions
 import '@testing-library/jest-dom';
+import { jest } from '@jest/globals';
 
 // Mock global objects
 global.ResizeObserver = jest.fn().mockImplementation(() => ({
