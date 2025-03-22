@@ -2,17 +2,13 @@ import { useState, useEffect } from "react";
 
 interface GoogleUser {
   email: string | null;
-
-// Configure to detect production environment
-// Always use import.meta.env.PROD instead of process.env for Vite projects
-const isProduction = import.meta.env.PROD || window.location.hostname === 'todo.agenticforce.io';
-
   displayName: string | null;
   photoURL: string | null;
 }
 
 // Configure to detect production environment
 // Always use import.meta.env.PROD instead of process.env for Vite projects
+const isProduction = import.meta.env.PROD || window.location.hostname === 'todo.agenticforce.io';
 const isProduction = import.meta.env.PROD || (import.meta.env.VITE_ENVIRONMENT === "production");
 
 export function useGoogleAuth() {

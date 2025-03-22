@@ -16,14 +16,17 @@ app.set('trust proxy', 1);
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Add CORS middleware for production environment only
-if (process.env.REPLIT_ENVIRONMENT === "production" || process.env.NODE_ENV === "production") {
-  console.log("Adding CORS headers for production environment");
-  app.use((req, res, next) => {
+// Add CORS middleware
+app.use((req, res, next) => {
+  // Check if in production mode
+  const isProduction = process.env.REPLIT_ENVIRONMENT === "production" || process.env.NODE_ENV === "production";
+  
+  if (isProduction) {
+    console.log("Adding CORS headers for production environment");
     const allowedOrigins = ['https://todo.agenticforce.io'];
     const origin = req.headers.origin || 'https://todo.agenticforce.io';
     
-    // Always set the CORS headers in production
+    // Production CORS headers
     res.header('Access-Control-Allow-Origin', origin);
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Cookie, Set-Cookie');
@@ -31,21 +34,34 @@ if (process.env.REPLIT_ENVIRONMENT === "production" || process.env.NODE_ENV === 
     res.header('Access-Control-Expose-Headers', 'Set-Cookie');
     
     // Log headers for debugging
-    console.log("CORS headers set:", {
+    console.log("Production CORS headers set:", {
       origin,
       method: req.method,
       path: req.path,
       hasCredentials: !!req.headers.cookie
     });
+  } else {
+    // Development CORS headers - more permissive
+    const origin = req.headers.origin || '*';
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Cookie, Set-Cookie');
+    res.header('Access-Control-Allow-Credentials', 'true');
     
-    // Handle preflight requests
-    if (req.method === 'OPTIONS') {
-      return res.status(200).end();
-    }
-    
-    next();
-  });
-}
+    console.log("Development CORS headers set:", {
+      origin,
+      method: req.method,
+      path: req.path
+    });
+  }
+  
+  // Handle preflight requests for both environments
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  next();
+});
 
 app.use((req, res, next) => {
   const start = Date.now();
