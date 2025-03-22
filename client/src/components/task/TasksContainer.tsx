@@ -184,6 +184,10 @@ export const TasksContainer: React.FC<TasksContainerProps> = ({ userId }) => {
         // Only count category if it's not "none"
         if (task.category && task.category.trim() !== '' && task.category.toLowerCase() !== 'none') count++;
         if (task.labels && task.labels.length > 0) count++;
+        
+        // Add bonus points for content link
+        if (task.contentLink && task.contentLink.trim() !== '') count += 2;
+        
         // Add more properties here as they're added to the model
         return count;
       };
