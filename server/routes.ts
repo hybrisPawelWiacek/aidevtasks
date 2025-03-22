@@ -67,8 +67,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       secure: isProduction, 
       maxAge: 86400000, // 1 day
       sameSite: isProduction ? 'none' : 'lax',
-      // Don't explicitly set domain in production as it can cause issues with top-level domains
-      // If a specific subdomain needs to be used, then domain can be set
+      // Set the domain for production to ensure cookies work correctly
+      ...(isProduction && {
+        domain: '.agenticforce.io', // Use the root domain to allow sharing across subdomains
+        path: '/'
+      })
     }
   };
   

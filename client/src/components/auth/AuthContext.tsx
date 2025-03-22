@@ -29,18 +29,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { toast } = useToast();
   const { isInitializing: isGoogleInitializing } = useGoogleAuth();
 
-  // Check auth status
-  const { isLoading: isCheckingAuth, refetch: checkAuth } = useQuery({
+  // Define response type for auth status
+  type AuthStatusResponse = { user: User } | null;
+  
+  // Check auth status using TanStack Query v5 proper format
+  const authStatusQuery = useQuery<AuthStatusResponse, Error>({
     queryKey: ["/api/auth/status"],
-    onSuccess: (data) => {
-      if (data && data.user) {
-        setUser(data.user);
+    queryFn: async () => {
+      try {
+        const response = await fetch("/api/auth/status", {
+          credentials: "include",
+        });
+        
+        if (response.status === 401) {
+          return null;
+        }
+        
+        if (!response.ok) {
+          throw new Error(`Auth status check failed: ${response.statusText}`);
+        }
+        
+        return await response.json();
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error("Auth status check error:", errorMessage);
+        throw new Error(errorMessage);
       }
-    },
-    onError: () => {
-      setUser(null);
-    },
+    }
   });
+  
+  const isCheckingAuth = authStatusQuery.isLoading;
+  const checkAuth = authStatusQuery.refetch;
+  
+  // Update user state when query data changes
+  useEffect(() => {
+    if (authStatusQuery.data && authStatusQuery.data.user) {
+      setUser(authStatusQuery.data.user);
+      console.log("User authenticated:", authStatusQuery.data.user);
+    } else if (authStatusQuery.isSuccess) {
+      console.log("No user data in auth status response");
+      setUser(null);
+    }
+  }, [authStatusQuery.data, authStatusQuery.isSuccess]);
 
   // Login mutation
   const { mutateAsync: loginMutation, isPending: isLoggingIn } = useMutation({
@@ -101,9 +131,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isLoading = isCheckingAuth || isGoogleInitializing || isLoggingIn || isLoggingOut;
 
   useEffect(() => {
-    // No need to check auth status on mount as the query will run automatically
-    // But we might want to refresh the auth status after login/logout
-  }, []);
+    // Check auth status on mount and periodically refresh if needed
+    const checkAuthentication = async () => {
+      try {
+        await checkAuth();
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error("Failed to check authentication status:", errorMessage);
+      }
+    };
+
+    // Set up a periodic check every 30 seconds to keep session alive and refresh auth state
+    const intervalId = setInterval(checkAuthentication, 30000);
+
+    // Clean up
+    return () => clearInterval(intervalId);
+  }, [checkAuth]);
 
   return (
     <AuthContext.Provider value={{ user, isLoading, login, logout }}>
