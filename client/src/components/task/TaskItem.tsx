@@ -70,7 +70,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
           <div className="flex items-center justify-between gap-2 mb-1">
             <h3 className={cn(
               "font-medium pr-2 text-gray-900",
-              task.completed && "line-through"
+              (task.completed || task.status === "Closed") && "line-through"
             )}>
               {task.title}
             </h3>
