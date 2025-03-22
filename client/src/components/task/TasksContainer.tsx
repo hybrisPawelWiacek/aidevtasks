@@ -130,6 +130,8 @@ export const TasksContainer: React.FC<TasksContainerProps> = ({ userId }) => {
         return tasks.filter(task => task.dueDate && isFuture(parseISO(task.dueDate)));
       case "completed":
         return tasks.filter(task => task.completed);
+      case "high":
+        return tasks.filter(task => task.priority === "high");
       case "overdue":
         return tasks.filter(task => task.dueDate && isPast(parseISO(task.dueDate)) && !task.completed);
       default:
