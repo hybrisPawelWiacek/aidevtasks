@@ -14,11 +14,42 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
 }) => {
   const { toast } = useToast();
   
-  const handleLogin = () => {
+  // Verify the Google API connection
+  const verifyGoogleAPI = async () => {
+    try {
+      const response = await fetch('https://accounts.google.com/o/oauth2/v2/auth?client_id=640277032312-n2amkdnbpupkfsvjk7ref40gep4o2qdn.apps.googleusercontent.com&redirect_uri=https://todo.agentforce.io/api/auth/google/callback&response_type=code&scope=email%20profile&access_type=online&prompt=none&login_hint=skip');
+      
+      console.log("Google API verification response:", response.status, response.statusText);
+      return response.status < 400; // Consider it a success if status code is less than 400
+    } catch (error) {
+      console.error("Google API verification failed:", error);
+      return false;
+    }
+  };
+  
+  const handleLogin = async () => {
     try {
       console.log("LoginButton: handleLogin called, isProduction:", isProduction);
       
       if (isProduction) {
+        // Show loading toast
+        toast({
+          title: "Preparing login...",
+          description: "Verifying connection to Google...",
+        });
+        
+        // First, verify Google API connection
+        const isGoogleAPIAccessible = await verifyGoogleAPI();
+        
+        if (!isGoogleAPIAccessible) {
+          toast({
+            variant: "destructive",
+            title: "Connection Error",
+            description: "Unable to connect to Google authentication service. This may be due to network issues or incorrect API credentials.",
+          });
+          return;
+        }
+        
         // In production, redirect to Google OAuth login
         toast({
           title: "Redirecting to Google...",

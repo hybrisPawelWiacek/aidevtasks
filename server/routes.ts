@@ -222,14 +222,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/auth/google/login", (req, res, next) => {
     console.log("Starting Google OAuth login flow...");
     try {
-      // Log OAuth state for debugging
-      console.log("OAuth configuration:", {
+      // Check for specific environment variables directly
+      const envClientId = process.env.GOOGLE_CLIENT_ID;
+      const envClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+      const envCallbackUrl = process.env.CALLBACK_URL;
+      const envRedirectUri = process.env.REDIRECT_URI;
+      const envJsOrigin = process.env.JAVASCRIPT_ORIGIN;
+      const envDomain = process.env.DOMAIN;
+      
+      // Log OAuth state for debugging with detailed information
+      console.log("OAuth environment check:", {
+        envClientIdExists: !!envClientId,
+        envClientIdLength: envClientId ? envClientId.length : 0,
+        envClientSecretExists: !!envClientSecret,
+        envCallbackUrl,
+        envRedirectUri,
+        envJsOrigin,
+        envDomain,
+        nodeEnv: process.env.NODE_ENV,
+        replitEnv: process.env.REPLIT_ENVIRONMENT
+      });
+      
+      console.log("OAuth request details:", {
         isProduction,
         clientIDExists: !!GOOGLE_CLIENT_ID,
         clientSecretExists: !!GOOGLE_CLIENT_SECRET,
         callbackURL: CALLBACK_URL,
         host: req.headers.host,
-        origin: req.headers.origin || 'unknown'
+        origin: req.headers.origin || 'unknown',
+        referer: req.headers.referer || 'unknown',
+        protocol: req.protocol,
+        secure: req.secure
       });
       
       // Use a different approach for the initial auth step
@@ -240,8 +263,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         response_type: 'code',
         scope: 'email profile',
         access_type: 'online',
+        prompt: 'select_account',  // Force account selection even if already logged in
         state: Math.random().toString(36).substring(2)  // Simple state param for CSRF protection
       };
+      
+      // Log actual parameters used for the request
+      console.log("OAuth parameters:", {
+        ...params,
+        client_id_length: params.client_id.length,
+        redirect_uri: params.redirect_uri
+      });
       
       // Set state in session for later verification
       if (req.session) {
@@ -284,6 +315,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     try {
+      // Log the token exchange attempt
+      console.log("Attempting token exchange with code length:", String(req.query.code).length);
+      
       // Manual token exchange rather than using passport directly
       const tokenURL = 'https://oauth2.googleapis.com/token';
       const tokenParams = new URLSearchParams({
@@ -292,6 +326,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         client_secret: GOOGLE_CLIENT_SECRET || '',
         redirect_uri: CALLBACK_URL,
         grant_type: 'authorization_code'
+      });
+      
+      // Log the token request parameters (safely)
+      console.log("Token request parameters:", {
+        url: tokenURL,
+        code_length: String(req.query.code).length,
+        client_id_length: GOOGLE_CLIENT_ID ? GOOGLE_CLIENT_ID.length : 0,
+        client_secret_exists: !!GOOGLE_CLIENT_SECRET,
+        redirect_uri: CALLBACK_URL
       });
       
       // Make the token request
@@ -303,10 +346,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         body: tokenParams.toString()
       });
       
+      // Log response status
+      console.log("Token response status:", tokenResponse.status, tokenResponse.statusText);
+      
       if (!tokenResponse.ok) {
-        const errorData = await tokenResponse.text();
-        console.error("Token exchange failed:", errorData);
-        return res.redirect("/login?error=" + encodeURIComponent(`Token exchange failed: ${errorData}`));
+        const errorText = await tokenResponse.text();
+        let errorData;
+        try {
+          // Try to parse as JSON if possible
+          errorData = JSON.parse(errorText);
+          console.error("Token exchange failed (JSON):", JSON.stringify(errorData, null, 2));
+        } catch (e) {
+          // If not JSON, use the raw text
+          errorData = errorText;
+          console.error("Token exchange failed (text):", errorData);
+        }
+        
+        // Construct a detailed error message
+        const errorDetails = typeof errorData === 'object' ? 
+          `${errorData.error}: ${errorData.error_description || 'No description'}` : 
+          errorData;
+          
+        return res.redirect("/login?error=" + encodeURIComponent(`Token exchange failed: ${errorDetails}`));
       }
       
       const tokenData = await tokenResponse.json();
