@@ -1,6 +1,20 @@
 
 import { db, pool } from './db';
 import { users, tasks } from '@shared/schema';
+import readline from 'readline';
+
+// Create readline interface to handle prompts
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+// Override readline question to automatically answer "yes"
+rl.question = (query, callback) => {
+  console.log(query);
+  console.log("Automatically answering: yes");
+  callback("yes");
+};
 
 async function queryDatabase() {
   console.log("Querying database for users and tasks...");
@@ -33,9 +47,25 @@ async function queryDatabase() {
         });
       }
     }
+    
+    // Ask if user wants to see password hashes (will automatically answer yes)
+    await new Promise<void>((resolve) => {
+      rl.question("Do you want to see password hashes? (yes/no) ", (answer) => {
+        if (answer.toLowerCase() === 'yes') {
+          console.log("\n===== USER PASSWORDS =====");
+          allUsers.forEach(user => {
+            console.log(`User: ${user.username} | Password Hash: ${user.password || '[None]'}`);
+          });
+        }
+        resolve();
+      });
+    });
+    
   } catch (error) {
     console.error("Error querying database:", error);
   } finally {
+    // Close the readline interface
+    rl.close();
     // Close the connection pool
     await pool.end();
   }
