@@ -32,6 +32,21 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({
   id: true,
 });
 
+// User registration schema with password
+export const registerUserSchema = insertUserSchema.extend({
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  confirmPassword: z.string().min(8, "Password must be at least 8 characters"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
+
+// User login schema
+export const loginUserSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(1, "Password is required"),
+});
+
 export type PriorityLevel = "low" | "medium" | "high";
 
 export const taskValidationSchema = insertTaskSchema.extend({
@@ -40,6 +55,8 @@ export const taskValidationSchema = insertTaskSchema.extend({
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type RegisterUser = z.infer<typeof registerUserSchema>;
+export type LoginUser = z.infer<typeof loginUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type Task = typeof tasks.$inferSelect;

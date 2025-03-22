@@ -1,16 +1,18 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import express from "express";
-import { insertTaskSchema, taskValidationSchema } from "@shared/schema";
+import { insertTaskSchema, taskValidationSchema, registerUserSchema, loginUserSchema } from "@shared/schema";
 import { ZodError, z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import { Strategy as LocalStrategy } from "passport-local";
 import session from "express-session";
 import MemoryStore from "memorystore";
 import ConnectPgSimple from "connect-pg-simple";
 import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
+import bcrypt from "bcryptjs";
 import { PostgresStorage } from "./pg-storage";
 import { initializeDatabase, createDemoTasks, initializeSessionTable } from "./db";
 
@@ -433,6 +435,123 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error during OAuth callback processing:", error);
       return res.redirect("/login?error=" + encodeURIComponent(`OAuth callback error: ${error.message}`));
+    }
+  });
+
+  // Configure local strategy for email/password login
+  passport.use(new LocalStrategy(
+    {
+      usernameField: 'email',
+      passwordField: 'password'
+    },
+    async (email, password, done) => {
+      try {
+        // Find user by email
+        const user = await storage.getUserByEmail(email);
+        
+        // Check if user exists
+        if (!user) {
+          return done(null, false, { message: 'Invalid email or password' });
+        }
+        
+        // Check if user has a password (might be a Google OAuth user)
+        if (!user.password) {
+          return done(null, false, { message: 'This account uses Google Sign-In. Please sign in with Google.' });
+        }
+        
+        // Verify password
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+          return done(null, false, { message: 'Invalid email or password' });
+        }
+        
+        return done(null, user);
+      } catch (error) {
+        return done(error);
+      }
+    }
+  ));
+  
+  // Register route (email/password)
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      // Validate request body
+      const validatedData = registerUserSchema.parse(req.body);
+      const { email, password, confirmPassword, ...userData } = validatedData;
+      
+      // Check if email is already in use
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ message: "Email is already in use" });
+      }
+      
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+      
+      // Generate username if not provided
+      if (!userData.username) {
+        userData.username = email.split("@")[0];
+      }
+      
+      // Create new user
+      const user = await storage.createUser({
+        ...userData,
+        email,
+        password: hashedPassword,
+      });
+      
+      // Create demo tasks for new user
+      await createDemoTasks(user.id);
+      
+      // Log in the user
+      req.login(user, (err) => {
+        if (err) {
+          return res.status(500).json({ message: "Error logging in after registration" });
+        }
+        
+        // Return user without password
+        const { password, ...userWithoutPassword } = user;
+        return res.status(201).json(userWithoutPassword);
+      });
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.message });
+      }
+      console.error("Registration error:", error);
+      return res.status(500).json({ message: "Server error during registration" });
+    }
+  });
+  
+  // Login route (email/password)
+  app.post("/api/auth/login", (req, res, next) => {
+    try {
+      // Validate request body
+      const validatedData = loginUserSchema.parse(req.body);
+      
+      passport.authenticate('local', (err, user, info) => {
+        if (err) {
+          return res.status(500).json({ message: "Authentication error" });
+        }
+        
+        if (!user) {
+          return res.status(401).json({ message: info?.message || "Invalid credentials" });
+        }
+        
+        req.login(user, (loginErr) => {
+          if (loginErr) {
+            return res.status(500).json({ message: "Error logging in" });
+          }
+          return res.status(200).json(user);
+        });
+      })(req, res, next);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.message });
+      }
+      console.error("Login error:", error);
+      return res.status(500).json({ message: "Server error during login" });
     }
   });
 
