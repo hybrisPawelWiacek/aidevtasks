@@ -69,7 +69,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     name: 'todo_session', // Give our session cookie a specific name
     cookie: { 
       secure: isProduction, // Only use secure cookies in production
-      maxAge: 86400000, // 1 day
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days instead of 1 for better persistence
       sameSite: isProduction ? 'none' : 'lax', // Use 'none' in production for cross-site cookies
       httpOnly: true, // Cookie only accessible via HTTP(S), not JavaScript
       path: '/', // Always set the path for consistency
@@ -619,11 +619,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Auth status check
+  // Auth status check with improved diagnostics
   app.get("/api/auth/status", (req, res) => {
+    console.log("Auth status check:", { 
+      hasUser: !!req.user, 
+      hasSession: !!req.session,
+      sessionID: req.sessionID,
+      headers: {
+        cookie: req.headers.cookie ? "Present" : "Missing",
+        origin: req.headers.origin,
+        referer: req.headers.referer,
+        host: req.headers.host
+      },
+      isProduction
+    });
+    
     if (req.user) {
       return res.status(200).json({ user: req.user });
     }
+    
+    // Return more detailed error info in development
+    if (!isProduction) {
+      return res.status(401).json({ 
+        message: "Not authenticated", 
+        debug: {
+          hasSession: !!req.session,
+          sessionID: req.sessionID || "None",
+          hasCookies: !!req.headers.cookie
+        }
+      });
+    }
+    
     return res.status(401).json({ message: "Not authenticated" });
   });
 
