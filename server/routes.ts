@@ -98,13 +98,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Apply rate limiting to all API routes
   app.use("/api", apiLimiter);
 
-  // Configure session with PostgreSQL for production or memory for development
-  // Determine if we're running on HTTPS (both Replit and custom domains)
+  // Configure session without forcing secure cookies for development compatibility
   const customDomain = process.env.DOMAIN || "todo.agenticforce.io";
   const isReplitURL = !!process.env.REPLIT_URL;
   const isCustomDomain = !isReplitURL && isProduction;
-  // Only force secure cookies in production with HTTPS
-  const isSecure = false; // Set to false for both environments to avoid cookie issues
+  // False for dev, true for production but we're setting to false everywhere for compatibility
+  const isSecure = false;
   
   console.log("Enhanced session configuration:", { 
     isProduction, 
@@ -932,20 +931,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Tasks API
-  // Get all tasks for the current user
+  // Get all tasks for the current user with test mode support
   app.get("/api/tasks", requireAuth, async (req, res) => {
     try {
+      // Get user ID from the authenticated user
       const userId = (req.user as any).id;
       
-      // For development, check if we need to use a fixed test user
-      if (req.headers['x-dev-testing'] === 'true' || (req.query.test === 'true')) {
+      // Check if this is a test mode request
+      const isTestMode = req.headers['x-dev-testing'] === 'true' || (req.query.test === 'true');
+      
+      // Log request details
+      console.log("Task request details:", {
+        authenticatedUser: userId, 
+        isTestMode,
+        headers: Object.keys(req.headers),
+        testQueryParam: req.query.test,
+        userAgent: req.headers['user-agent']
+      });
+      
+      // For test mode, use the special test user
+      if (isTestMode) {
         try {
           // Attempt to find the test user
           const testUser = await storage.getUserByEmail('jan.dzban@mail.com');
           if (testUser) {
-            console.log("⚠️ Using test user for task retrieval");
+            console.log("⚠️ Using test user for task retrieval:", testUser.id);
             const tasks = await storage.getTasksByUserId(testUser.id);
+            console.log(`Found ${tasks.length} tasks for test user`);
             return res.status(200).json(tasks);
+          } else {
+            console.error("Test user not found in database");
           }
         } catch (e) {
           console.error("Error getting test user tasks:", e);
@@ -953,7 +968,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Standard flow - get tasks for the authenticated user
+      console.log("Using standard authentication flow for tasks, user:", userId);
       const tasks = await storage.getTasksByUserId(userId);
+      console.log(`Found ${tasks.length} tasks for authenticated user ${userId}`);
       return res.status(200).json(tasks);
     } catch (error) {
       console.error("Error fetching tasks:", error);
@@ -961,12 +978,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create a new task
+  // Create a new task with test mode support
   app.post("/api/tasks", requireAuth, async (req, res) => {
     try {
-      const userId = (req.user as any).id;
+      let userId = (req.user as any).id;
       
-      // Create the task with the appropriate user ID
+      // Check if this is a test mode request
+      const isTestMode = req.headers['x-dev-testing'] === 'true' || (req.query.test === 'true');
+      
+      // Log task creation request details
+      console.log("Task creation request:", {
+        authenticatedUser: userId, 
+        isTestMode,
+        headers: Object.keys(req.headers),
+        testQueryParam: req.query.test,
+        taskData: { 
+          ...req.body,
+          title: req.body.title,
+          dueDate: req.body.dueDate,
+        }
+      });
+      
+      // For test mode, use the special test user
+      if (isTestMode) {
+        try {
+          // Attempt to find the test user
+          const testUser = await storage.getUserByEmail('jan.dzban@mail.com');
+          if (testUser) {
+            console.log("⚠️ Using test user for task creation:", testUser.id);
+            // Override the user ID
+            userId = testUser.id;
+          } else {
+            console.error("Test user not found in database for task creation");
+          }
+        } catch (e) {
+          console.error("Error getting test user for task creation:", e);
+        }
+      }
+      
+      // Create the task with the appropriate user ID (original or test user)
       const taskData = { ...req.body, userId };
       
       // Validate task data
@@ -975,11 +1025,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Create the task
         const task = await storage.createTask(validatedData);
-        console.log("Task created successfully:", task.id);
+        console.log("Task created successfully:", task.id, "for user:", userId);
         return res.status(201).json(task);
       } catch (validationError) {
         if (validationError instanceof ZodError) {
           const formattedError = fromZodError(validationError);
+          console.error("Task validation error:", formattedError.message);
           return res.status(400).json({ message: formattedError.message });
         }
         throw validationError;
