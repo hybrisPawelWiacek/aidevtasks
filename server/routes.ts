@@ -229,11 +229,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // User exists, check password
         if (!user.password_hash) {
-          console.log("No password hash found for user:", user.email);
-          return done(null, false, { message: "This account doesn't have a password set" });
+          // Legacy case: Some users might have password directly in the password field
+          if (user.password) {
+            console.log("Using legacy password field for user:", user.email);
+            // For security, move the password to the password_hash field for next time
+            const salt = await bcrypt.genSalt(10);
+            const newHash = await bcrypt.hash(password, salt);
+            
+            // Update the user to use password_hash field
+            await storage.updateUser(user.id, {
+              password_hash: newHash,
+              password: null // Clear old password field
+            });
+            
+            // Direct comparison for this login attempt
+            const isMatch = password === user.password;
+            if (!isMatch) {
+              return done(null, false, { message: "Invalid email or password" });
+            }
+            return done(null, user);
+          } else {
+            console.log("No password hash found for user:", user.email);
+            return done(null, false, { message: "This account doesn't have a password set" });
+          }
         }
         
-        // Compare passwords
+        // Standard case: Compare passwords with bcrypt
         const isMatch = await bcrypt.compare(password, user.password_hash);
         
         if (!isMatch) {

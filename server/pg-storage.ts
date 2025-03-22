@@ -33,6 +33,34 @@ export class PostgresStorage implements IStorage {
     
     return user;
   }
+  
+  async updateUser(id: number, userData: Partial<User>): Promise<User> {
+    // Get current user data
+    const existingUser = await this.getUser(id);
+    if (!existingUser) {
+      throw new Error(`User with id ${id} not found`);
+    }
+
+    // Update the user with merged data
+    const [updatedUser] = await db.update(users)
+      .set({
+        username: userData.username || existingUser.username,
+        email: userData.email || existingUser.email,
+        displayName: userData.displayName !== undefined ? userData.displayName : existingUser.displayName,
+        photoURL: userData.photoURL !== undefined ? userData.photoURL : existingUser.photoURL,
+        googleId: userData.googleId !== undefined ? userData.googleId : existingUser.googleId,
+        password: userData.password !== undefined ? userData.password : existingUser.password,
+        password_hash: (userData as any).password_hash !== undefined ? (userData as any).password_hash : (existingUser as any).password_hash,
+      })
+      .where(eq(users.id, id))
+      .returning();
+    
+    if (!updatedUser) {
+      throw new Error(`Failed to update user with id ${id}`);
+    }
+    
+    return updatedUser;
+  }
 
   async getTask(id: number): Promise<Task | undefined> {
     const result = await db.select().from(tasks).where(eq(tasks.id, id)).limit(1);
