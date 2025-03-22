@@ -176,7 +176,8 @@ export const TasksContainer: React.FC<TasksContainerProps> = ({ userId }) => {
       if (task.title && task.title.trim() !== '') count++;
       if (task.description && task.description.trim() !== '') count++;
       if (task.dueDate) count++;
-      if (task.category && task.category.trim() !== '') count++;
+      // Only count category if it's not "none"
+      if (task.category && task.category.trim() !== '' && task.category.toLowerCase() !== 'none') count++;
       if (task.labels && task.labels.length > 0) count++;
       // Add more properties here as they're added to the model
       return count;
