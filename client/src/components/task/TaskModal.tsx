@@ -32,10 +32,12 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
-  SelectGroup,
 } from "@/components/ui/select";
 import { Task } from "../../../shared/schema";
 import { PRIORITY_LEVELS, CATEGORY_OPTIONS } from "@/lib/constants";
@@ -278,6 +280,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                       </FormControl>
                       <SelectContent>
                         <SelectGroup>
+                          <SelectLabel>Global Categories</SelectLabel>
                           {CATEGORY_OPTIONS.map((category) => (
                             <SelectItem
                               key={category.value}
@@ -286,27 +289,11 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                               {category.label}
                             </SelectItem>
                           ))}
-                          <div
-                            className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-
-                              // Forcefully close the select dropdown
-                              const selectTrigger = document.querySelector('[id^="radix-"][data-state="open"]');
-                              if (selectTrigger) {
-                                (selectTrigger as HTMLElement).click();
-                              }
-
-                              // Wait for dropdown animation to complete before showing the form
-                              setTimeout(() => {
-                                setIsAddingCategory(true);
-                              }, 150);
-                            }}
-                          >
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add new category
-                          </div>
+                        </SelectGroup>
+                        <SelectSeparator />
+                        <SelectGroup>
+                          <SelectLabel>Your Categories</SelectLabel>
+                          {/* This would be populated with user-specific categories in a real app */}
                         </SelectGroup>
                       </SelectContent>
                     </Select>
