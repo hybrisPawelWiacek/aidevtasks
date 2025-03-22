@@ -30,7 +30,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   };
 
   const priorityClasses: Record<PriorityLevel, string> = {
-    high: "bg-destructive bg-opacity-10 text-destructive",
+    high: "bg-gray-800 text-white",
     medium: "bg-warning bg-opacity-10 text-warning",
     low: "bg-success bg-opacity-10 text-success",
   };
@@ -64,7 +64,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
             </svg>
           )}
         </button>
-        
+
         {/* Task Content */}
         <div className="flex-grow">
           <div className="flex items-center justify-between gap-2 mb-1">
@@ -74,7 +74,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
             )}>
               {task.title}
             </h3>
-            
+
             {/* Priority Tag */}
             <div className={cn(
               "px-2 py-0.5 rounded-full text-xs font-medium",
@@ -85,14 +85,14 @@ export const TaskItem: React.FC<TaskItemProps> = ({
               {task.priority === "low" && "Low Priority"}
             </div>
           </div>
-          
+
           <p className={cn(
             "text-sm mb-3",
             task.completed ? "text-gray-500 line-through" : "text-gray-600"
           )}>
             {task.description}
           </p>
-          
+
           <div className="flex items-center justify-between flex-wrap gap-y-2">
             {/* Task Meta */}
             <div className="flex items-center gap-3 text-xs text-gray-500">
@@ -101,7 +101,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
                 <Calendar className="h-3.5 w-3.5" />
                 <span>{formatDate(task.dueDate)}</span>
               </div>
-              
+
               {/* Category */}
               {task.category && (
                 <div className="flex items-center gap-1">
@@ -110,7 +110,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
                 </div>
               )}
             </div>
-            
+
             {/* Task Actions */}
             <div className="flex items-center gap-1">
               <button 

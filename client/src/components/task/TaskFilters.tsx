@@ -18,7 +18,7 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({
     { id: "today", label: "Today", icon: <CalendarCheck className="h-4 w-4" /> },
     { id: "upcoming", label: "Upcoming", icon: <Calendar className="h-4 w-4" /> },
     { id: "completed", label: "Completed", icon: <CheckCircle className="h-4 w-4" /> },
-    { id: "high", label: "High Priority", icon: <Flag className="h-4 w-4 text-destructive" /> },
+    { id: "high", label: "High Priority", icon: <Flag className="h-4 w-4 text-gray-800" /> },
   ];
 
   return (
