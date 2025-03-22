@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -248,8 +247,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {PRIORITY_LEVELS.map((priority) => (
-                        <SelectItem key={priority.value} value={priority.value}>
+                      {Object.entries(PRIORITY_LEVELS).map(([value, priority]) => (
+                        <SelectItem key={value} value={value}>
                           {priority.label}
                         </SelectItem>
                       ))}
@@ -292,13 +291,13 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              
+
                               // Forcefully close the select dropdown
                               const selectTrigger = document.querySelector('[id^="radix-"][data-state="open"]');
                               if (selectTrigger) {
                                 (selectTrigger as HTMLElement).click();
                               }
-                              
+
                               // Wait for dropdown animation to complete before showing the form
                               setTimeout(() => {
                                 setIsAddingCategory(true);
@@ -330,13 +329,13 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                               .trim()
                               .toLowerCase()
                               .replace(/\s+/g, "-");
-                            
+
                             // Update form value
                             field.onChange(newValue);
-                            
+
                             // Add to CATEGORY_OPTIONS (this would require backend update in real app)
                             // In a real app, you would save this to the database
-                            
+
                             setIsAddingCategory(false);
                             setNewCategoryName("");
                           }
