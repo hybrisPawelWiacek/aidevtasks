@@ -29,6 +29,7 @@ export async function initializeDatabase() {
         "id" SERIAL PRIMARY KEY,
         "username" TEXT NOT NULL UNIQUE,
         "password" TEXT,
+        "password_hash" TEXT,
         "email" TEXT NOT NULL UNIQUE,
         "display_name" TEXT,
         "photo_url" TEXT,
@@ -39,11 +40,20 @@ export async function initializeDatabase() {
         "id" SERIAL PRIMARY KEY,
         "title" TEXT NOT NULL,
         "description" TEXT,
+        "content_link" TEXT,
+        "content_type" TEXT,
         "completed" BOOLEAN NOT NULL DEFAULT false,
         "priority" TEXT NOT NULL DEFAULT 'medium',
         "due_date" TEXT NOT NULL,
         "category" TEXT,
         "user_id" INTEGER NOT NULL
+      );
+      
+      CREATE TABLE IF NOT EXISTS "user_categories" (
+        "id" SERIAL PRIMARY KEY,
+        "name" TEXT NOT NULL,
+        "user_id" INTEGER NOT NULL,
+        UNIQUE("name", "user_id")
       );
     `);
     
