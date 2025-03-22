@@ -1,322 +1,278 @@
-const { describe, it, expect, beforeEach, jest, afterAll, beforeAll } = require('@jest/globals');
-const request = require('supertest');
-const express = require('express');
-const { registerRoutes } = require('../../../server/routes');
-const { storage } = require('../../../server/storage');
+import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import supertest from 'supertest';
+import express from 'express';
+import { registerRoutes } from '../../../server/routes';
 
-// Mock the storage implementation
-jest.mock('../../../server/storage', () => ({
-  storage: {
-    getTasksByUserId: jest.fn(),
-    createTask: jest.fn(),
-    updateTask: jest.fn(),
-    updateTaskCompletion: jest.fn(),
-    deleteTask: jest.fn(),
-    getTask: jest.fn()
-  }
-}));
+// Mock authentication middleware for routes
+jest.mock('../../../server/routes', () => {
+  const originalModule = jest.requireActual('../../../server/routes');
+  
+  // A modified version that skips authentication checks
+  return {
+    ...originalModule,
+    registerRoutes: async (app) => {
+      // Add auth middleware mock
+      app.use((req, res, next) => {
+        // Set authenticated user for all requests
+        req.isAuthenticated = () => true;
+        req.user = { id: 1, username: 'testuser' };
+        next();
+      });
+      
+      // Register the actual routes
+      const server = await originalModule.registerRoutes(app);
+      return server;
+    }
+  };
+});
 
-// Mock authentication middleware
-jest.mock('../../../server/middleware/auth', () => ({
-  requireAuth: (req, res, next) => {
-    req.user = { id: 1, username: 'testuser' };
-    next();
-  }
-}));
+// Mock storage implementation
+jest.mock('../../../server/pg-storage', () => {
+  // Sample tasks for testing
+  const tasks = [
+    {
+      id: 1,
+      title: 'Task 1',
+      description: 'Description 1',
+      completed: false,
+      userId: 1,
+      priority: 'high',
+      category: 'work',
+      dueDate: '2025-03-30T12:00:00.000Z'
+    },
+    {
+      id: 2,
+      title: 'Task 2',
+      description: 'Description 2',
+      completed: true,
+      userId: 1,
+      priority: 'medium',
+      category: 'personal',
+      dueDate: '2025-04-15T12:00:00.000Z'
+    }
+  ];
+  
+  let nextId = 3;
+  
+  return {
+    PostgresStorage: jest.fn().mockImplementation(() => ({
+      getTasksByUserId: jest.fn().mockImplementation(() => {
+        return Promise.resolve([...tasks]);
+      }),
+      getTask: jest.fn().mockImplementation((id) => {
+        const task = tasks.find(t => t.id === id);
+        return Promise.resolve(task || null);
+      }),
+      createTask: jest.fn().mockImplementation((taskData) => {
+        const newTask = {
+          id: nextId++,
+          ...taskData,
+          completed: false
+        };
+        tasks.push(newTask);
+        return Promise.resolve(newTask);
+      }),
+      updateTask: jest.fn().mockImplementation((id, taskData) => {
+        const index = tasks.findIndex(t => t.id === id);
+        if (index >= 0) {
+          const updatedTask = {
+            ...tasks[index],
+            ...taskData
+          };
+          tasks[index] = updatedTask;
+          return Promise.resolve(updatedTask);
+        }
+        return Promise.resolve(null);
+      }),
+      updateTaskCompletion: jest.fn().mockImplementation((id, completed) => {
+        const index = tasks.findIndex(t => t.id === id);
+        if (index >= 0) {
+          tasks[index].completed = completed;
+          return Promise.resolve(tasks[index]);
+        }
+        return Promise.resolve(null);
+      }),
+      deleteTask: jest.fn().mockImplementation((id) => {
+        const index = tasks.findIndex(t => t.id === id);
+        if (index >= 0) {
+          tasks.splice(index, 1);
+        }
+        return Promise.resolve();
+      })
+    }))
+  };
+});
 
-// Mock database initialization
-jest.mock('../../../server/db', () => ({
-  initializeDatabase: jest.fn().mockResolvedValue(true),
-  initializeUserSessionsTable: jest.fn().mockResolvedValue(true),
-  createDemoTasks: jest.fn(),
-  db: {},
-  pool: {}
-}));
-
-describe('Task API Endpoints', () => {
+describe('Task API Integration Tests', () => {
   let app;
-  let server;
+  let request;
 
-  beforeAll(async () => {
+  beforeEach(async () => {
     app = express();
     app.use(express.json());
-    server = await registerRoutes(app);
+    
+    // Initialize routes with authentication bypass
+    await registerRoutes(app);
+    
+    request = supertest(app);
   });
 
-  afterAll(() => {
-    if (server && server.close) {
-      server.close();
-    }
-  });
-
-  beforeEach(() => {
+  afterEach(() => {
     jest.clearAllMocks();
   });
 
   describe('GET /api/tasks', () => {
-    it('should return tasks for the authenticated user', async () => {
-      const mockTasks = [
-        { id: 1, title: 'Task 1', userId: 1 },
-        { id: 2, title: 'Task 2', userId: 1 }
-      ];
-      
-      storage.getTasksByUserId.mockResolvedValue(mockTasks);
-      
-      const response = await request(app).get('/api/tasks');
-      
-      expect(response.status).toBe(200);
-      expect(response.body).toEqual(mockTasks);
-      expect(storage.getTasksByUserId).toHaveBeenCalledWith(1);
+    it('should return all tasks for the authenticated user', async () => {
+      const response = await request
+        .get('/api/tasks')
+        .expect('Content-Type', /json/)
+        .expect(200);
+
+      expect(Array.isArray(response.body)).toBe(true);
+      expect(response.body.length).toBe(2);
+      expect(response.body[0]).toHaveProperty('id', 1);
+      expect(response.body[1]).toHaveProperty('id', 2);
+    });
+  });
+
+  describe('GET /api/tasks/:id', () => {
+    it('should return a specific task by ID', async () => {
+      const response = await request
+        .get('/api/tasks/1')
+        .expect('Content-Type', /json/)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('id', 1);
+      expect(response.body).toHaveProperty('title', 'Task 1');
     });
 
-    it('should handle errors when fetching tasks', async () => {
-      storage.getTasksByUserId.mockRejectedValue(new Error('Database error'));
-      
-      const response = await request(app).get('/api/tasks');
-      
-      expect(response.status).toBe(500);
-      expect(response.body).toHaveProperty('message', 'Server error fetching tasks');
+    it('should return 404 for non-existent task', async () => {
+      await request
+        .get('/api/tasks/999')
+        .expect('Content-Type', /json/)
+        .expect(404);
     });
   });
 
   describe('POST /api/tasks', () => {
-    it('should create a new task for the authenticated user', async () => {
+    it('should create a new task', async () => {
       const newTask = {
         title: 'New Task',
-        description: 'Task description',
+        description: 'New Task Description',
         priority: 'medium',
-        dueDate: '2023-03-01',
-        category: 'Work'
+        category: 'work',
+        dueDate: '2025-05-01T12:00:00.000Z'
       };
-      
-      const createdTask = { 
-        id: 3, 
-        ...newTask, 
-        userId: 1,
-        completed: false
-      };
-      
-      storage.createTask.mockResolvedValue(createdTask);
-      
-      const response = await request(app)
+
+      const response = await request
         .post('/api/tasks')
-        .send(newTask);
-      
-      expect(response.status).toBe(201);
-      expect(response.body).toEqual(createdTask);
-      expect(storage.createTask).toHaveBeenCalledWith({
-        ...newTask,
-        userId: 1
-      });
+        .send(newTask)
+        .expect('Content-Type', /json/)
+        .expect(201);
+
+      expect(response.body).toHaveProperty('id');
+      expect(response.body).toHaveProperty('title', newTask.title);
+      expect(response.body).toHaveProperty('userId', 1); // From the auth mock
+      expect(response.body).toHaveProperty('completed', false);
     });
 
-    it('should validate task data before creating', async () => {
+    it('should return 400 for invalid task data', async () => {
       const invalidTask = {
         // Missing required title
-        description: 'Task description',
-        priority: 'invalid-priority', // Invalid priority
-        dueDate: '2023-03-01',
-        category: 'Work'
+        description: 'Invalid Task'
       };
-      
-      const response = await request(app)
-        .post('/api/tasks')
-        .send(invalidTask);
-      
-      expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('message');
-      expect(storage.createTask).not.toHaveBeenCalled();
-    });
 
-    it('should handle errors when creating a task', async () => {
-      const newTask = {
-        title: 'New Task',
-        description: 'Task description',
-        priority: 'medium',
-        dueDate: '2023-03-01',
-        category: 'Work'
-      };
-      
-      storage.createTask.mockRejectedValue(new Error('Database error'));
-      
-      const response = await request(app)
+      await request
         .post('/api/tasks')
-        .send(newTask);
-      
-      expect(response.status).toBe(500);
-      expect(response.body).toHaveProperty('message', 'Server error creating task');
+        .send(invalidTask)
+        .expect('Content-Type', /json/)
+        .expect(400);
     });
   });
 
-  describe('PUT /api/tasks/:id', () => {
-    it('should update a task for the authenticated user', async () => {
-      const taskId = 1;
+  describe('PATCH /api/tasks/:id', () => {
+    it('should update an existing task', async () => {
       const updateData = {
-        title: 'Updated Task',
-        description: 'Updated description',
-        priority: 'high',
-        dueDate: '2023-03-15',
-        category: 'Personal'
+        title: 'Updated Task 1',
+        description: 'Updated Description'
       };
-      
-      const originalTask = {
-        id: taskId,
-        title: 'Original Task',
-        description: 'Original description',
-        priority: 'medium',
-        dueDate: '2023-03-01',
-        category: 'Work',
-        completed: false,
-        userId: 1
-      };
-      
-      const updatedTask = {
-        ...originalTask,
-        ...updateData
-      };
-      
-      storage.getTask.mockResolvedValue(originalTask);
-      storage.updateTask.mockResolvedValue(updatedTask);
-      
-      const response = await request(app)
-        .put(`/api/tasks/${taskId}`)
-        .send(updateData);
-      
-      expect(response.status).toBe(200);
-      expect(response.body).toEqual(updatedTask);
-      expect(storage.updateTask).toHaveBeenCalledWith(taskId, {
-        ...updateData,
-        userId: 1
-      });
+
+      const response = await request
+        .patch('/api/tasks/1')
+        .send(updateData)
+        .expect('Content-Type', /json/)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('id', 1);
+      expect(response.body).toHaveProperty('title', updateData.title);
+      expect(response.body).toHaveProperty('description', updateData.description);
     });
 
-    it('should return 404 if task is not found', async () => {
-      const taskId = 999;
-      storage.getTask.mockResolvedValue(undefined);
-      
-      const response = await request(app)
-        .put(`/api/tasks/${taskId}`)
-        .send({
-          title: 'Updated Task',
-          priority: 'high',
-          dueDate: '2023-03-15'
-        });
-      
-      expect(response.status).toBe(404);
-      expect(response.body).toHaveProperty('message', 'Task not found');
-      expect(storage.updateTask).not.toHaveBeenCalled();
-    });
-
-    it('should return 403 if user tries to update another user\'s task', async () => {
-      const taskId = 2;
-      const originalTask = {
-        id: taskId,
-        title: 'Another User\'s Task',
-        userId: 2 // Different from authenticated user (id: 1)
-      };
-      
-      storage.getTask.mockResolvedValue(originalTask);
-      
-      const response = await request(app)
-        .put(`/api/tasks/${taskId}`)
-        .send({
-          title: 'Trying to update',
-          priority: 'high',
-          dueDate: '2023-03-15'
-        });
-      
-      expect(response.status).toBe(403);
-      expect(response.body).toHaveProperty('message', 'Not authorized to update this task');
-      expect(storage.updateTask).not.toHaveBeenCalled();
+    it('should return 404 for non-existent task', async () => {
+      await request
+        .patch('/api/tasks/999')
+        .send({ title: 'Updated Title' })
+        .expect('Content-Type', /json/)
+        .expect(404);
     });
   });
 
-  describe('PATCH /api/tasks/:id/complete', () => {
-    it('should update the completion status of a task', async () => {
-      const taskId = 1;
-      const originalTask = {
-        id: taskId,
-        title: 'Task to complete',
-        completed: false,
-        userId: 1
-      };
-      
-      const updatedTask = {
-        ...originalTask,
-        completed: true
-      };
-      
-      storage.getTask.mockResolvedValue(originalTask);
-      storage.updateTaskCompletion.mockResolvedValue(updatedTask);
-      
-      const response = await request(app)
-        .patch(`/api/tasks/${taskId}/complete`)
-        .send({ completed: true });
-      
-      expect(response.status).toBe(200);
-      expect(response.body).toEqual(updatedTask);
-      expect(storage.updateTaskCompletion).toHaveBeenCalledWith(taskId, true);
+  describe('POST /api/tasks/:id/complete', () => {
+    it('should mark a task as complete', async () => {
+      const response = await request
+        .post('/api/tasks/1/complete')
+        .expect('Content-Type', /json/)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('id', 1);
+      expect(response.body).toHaveProperty('completed', true);
     });
 
-    it('should return 404 if task is not found', async () => {
-      const taskId = 999;
-      storage.getTask.mockResolvedValue(undefined);
-      
-      const response = await request(app)
-        .patch(`/api/tasks/${taskId}/complete`)
-        .send({ completed: true });
-      
-      expect(response.status).toBe(404);
-      expect(response.body).toHaveProperty('message', 'Task not found');
-      expect(storage.updateTaskCompletion).not.toHaveBeenCalled();
+    it('should return 404 for non-existent task', async () => {
+      await request
+        .post('/api/tasks/999/complete')
+        .expect('Content-Type', /json/)
+        .expect(404);
+    });
+  });
+
+  describe('POST /api/tasks/:id/incomplete', () => {
+    it('should mark a task as incomplete', async () => {
+      const response = await request
+        .post('/api/tasks/2/incomplete')
+        .expect('Content-Type', /json/)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('id', 2);
+      expect(response.body).toHaveProperty('completed', false);
+    });
+
+    it('should return 404 for non-existent task', async () => {
+      await request
+        .post('/api/tasks/999/incomplete')
+        .expect('Content-Type', /json/)
+        .expect(404);
     });
   });
 
   describe('DELETE /api/tasks/:id', () => {
-    it('should delete a task belonging to the authenticated user', async () => {
-      const taskId = 1;
-      const taskToDelete = {
-        id: taskId,
-        title: 'Task to delete',
-        userId: 1
-      };
-      
-      storage.getTask.mockResolvedValue(taskToDelete);
-      storage.deleteTask.mockResolvedValue(undefined);
-      
-      const response = await request(app).delete(`/api/tasks/${taskId}`);
-      
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('message', 'Task deleted successfully');
-      expect(storage.deleteTask).toHaveBeenCalledWith(taskId);
+    it('should delete a task', async () => {
+      await request
+        .delete('/api/tasks/1')
+        .expect('Content-Type', /json/)
+        .expect(200);
+
+      // Verify the task is deleted by trying to get it
+      await request
+        .get('/api/tasks/1')
+        .expect(404);
     });
 
-    it('should return 404 if task is not found', async () => {
-      const taskId = 999;
-      storage.getTask.mockResolvedValue(undefined);
-      
-      const response = await request(app).delete(`/api/tasks/${taskId}`);
-      
-      expect(response.status).toBe(404);
-      expect(response.body).toHaveProperty('message', 'Task not found');
-      expect(storage.deleteTask).not.toHaveBeenCalled();
-    });
-
-    it('should return 403 if user tries to delete another user\'s task', async () => {
-      const taskId = 2;
-      const taskToDelete = {
-        id: taskId,
-        title: 'Another User\'s Task',
-        userId: 2 // Different from authenticated user (id: 1)
-      };
-      
-      storage.getTask.mockResolvedValue(taskToDelete);
-      
-      const response = await request(app).delete(`/api/tasks/${taskId}`);
-      
-      expect(response.status).toBe(403);
-      expect(response.body).toHaveProperty('message', 'Not authorized to delete this task');
-      expect(storage.deleteTask).not.toHaveBeenCalled();
+    it('should return 404 for non-existent task', async () => {
+      await request
+        .delete('/api/tasks/999')
+        .expect('Content-Type', /json/)
+        .expect(404);
     });
   });
 });

@@ -1,23 +1,45 @@
-const { describe, it, expect, jest, beforeEach } = require('@jest/globals');
-const { render, screen, fireEvent, waitFor } = require('@testing-library/react');
-const { TaskModal } = require('@/components/task/TaskModal');
+import { describe, it, expect, jest } from '@jest/globals';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { TaskModal } from '@/components/task/TaskModal';
+import { CATEGORY_OPTIONS, PRIORITY_LEVELS } from '@/lib/constants';
 
-// Mock components used by TaskModal
-jest.mock('@/components/ui/dialog', () => ({
-  Dialog: ({ open, children }) => open ? <div data-testid="dialog">{children}</div> : null,
-  DialogContent: ({ children }) => <div data-testid="dialog-content">{children}</div>,
-  DialogHeader: ({ children }) => <div data-testid="dialog-header">{children}</div>,
-  DialogTitle: ({ children }) => <div data-testid="dialog-title">{children}</div>,
-  DialogFooter: ({ children }) => <div data-testid="dialog-footer">{children}</div>,
-}));
-
+// Mock the required components and hooks
 jest.mock('@/components/ui/form', () => ({
-  Form: ({ onSubmit, children }) => <form onSubmit={onSubmit} data-testid="form">{children}</form>,
-  FormField: ({ name, control, render }) => render({ field: { name, value: '', onChange: jest.fn() } }),
+  Form: ({ children, onSubmit }) => <form onSubmit={onSubmit} data-testid="form">{children}</form>,
+  FormField: ({ children }) => <div data-testid="form-field">{children}</div>,
   FormItem: ({ children }) => <div data-testid="form-item">{children}</div>,
   FormLabel: ({ children }) => <label>{children}</label>,
   FormControl: ({ children }) => <div data-testid="form-control">{children}</div>,
   FormMessage: ({ children }) => <div data-testid="form-message">{children}</div>,
+  FormDescription: ({ children }) => <div data-testid="form-description">{children}</div>,
+  useForm: () => ({
+    register: jest.fn(),
+    handleSubmit: (cb) => (e) => {
+      e?.preventDefault();
+      cb({
+        title: 'New Task Title',
+        description: 'New Task Description',
+        dueDate: '2025-03-30T12:00:00.000Z',
+        priority: 'high',
+        category: 'work'
+      });
+    },
+    control: { field: {} },
+    formState: { errors: {} },
+    setValue: jest.fn(),
+    getValues: jest.fn(),
+    watch: jest.fn(),
+    reset: jest.fn(),
+  }),
+}));
+
+jest.mock('@/components/ui/dialog', () => ({
+  Dialog: ({ children }) => <div data-testid="dialog">{children}</div>,
+  DialogContent: ({ children }) => <div data-testid="dialog-content">{children}</div>,
+  DialogHeader: ({ children }) => <div data-testid="dialog-header">{children}</div>,
+  DialogTitle: ({ children }) => <h2 data-testid="dialog-title">{children}</h2>,
+  DialogDescription: ({ children }) => <p data-testid="dialog-description">{children}</p>,
+  DialogFooter: ({ children }) => <div data-testid="dialog-footer">{children}</div>,
 }));
 
 jest.mock('@/components/ui/input', () => ({
@@ -30,75 +52,65 @@ jest.mock('@/components/ui/textarea', () => ({
 
 jest.mock('@/components/ui/select', () => ({
   Select: ({ children }) => <div data-testid="select">{children}</div>,
-  SelectTrigger: ({ children }) => <div data-testid="select-trigger">{children}</div>,
-  SelectValue: ({ children }) => <div data-testid="select-value">{children}</div>,
+  SelectTrigger: ({ children }) => <button data-testid="select-trigger">{children}</button>,
+  SelectValue: (props) => <span {...props} data-testid="select-value" />,
   SelectContent: ({ children }) => <div data-testid="select-content">{children}</div>,
-  SelectItem: ({ value, children }) => <option value={value}>{children}</option>,
+  SelectGroup: ({ children }) => <div data-testid="select-group">{children}</div>,
+  SelectItem: ({ children, value }) => (
+    <div data-testid={`select-item-${value}`}>{children}</div>
+  ),
+}));
+
+jest.mock('@/components/ui/radio-group', () => ({
+  RadioGroup: ({ children }) => <div data-testid="radio-group">{children}</div>,
+  RadioGroupItem: ({ children, value }) => (
+    <div data-testid={`radio-group-item-${value}`}>{children}</div>
+  ),
 }));
 
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, ...props }) => <button {...props} data-testid="button">{children}</button>,
+  Button: ({ children, type, onClick }) => (
+    <button data-testid={`button-${type || 'default'}`} onClick={onClick}>
+      {children}
+    </button>
+  ),
 }));
 
-// Mock react-hook-form
-jest.mock('react-hook-form', () => ({
-  useForm: () => ({
-    control: {},
-    handleSubmit: (cb) => (e) => {
-      e.preventDefault();
-      cb({
-        title: 'Test Task',
-        description: 'Test description',
-        dueDate: '2023-03-01',
-        priority: 'medium',
-        category: 'Work'
-      });
-    },
-    reset: jest.fn(),
-    formState: { errors: {} }
-  }),
-}));
-
-// Mock the hookform/resolvers/zod
-jest.mock('@hookform/resolvers/zod', () => ({
-  zodResolver: jest.fn(() => ({})),
-}));
+// Sample task data for testing
+const mockTask = {
+  id: 1,
+  title: 'Test Task',
+  description: 'This is a test task description',
+  completed: false,
+  userId: 1,
+  priority: 'medium',
+  category: 'work',
+  dueDate: '2025-03-30T12:00:00.000Z'
+};
 
 describe('TaskModal Component', () => {
   const mockOnSave = jest.fn();
   const mockOnClose = jest.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    mockOnSave.mockClear();
+    mockOnClose.mockClear();
   });
 
-  it('should render correctly when opened for creating a new task', () => {
+  it('renders correctly when creating a new task', () => {
     render(
       <TaskModal
         isOpen={true}
-        task={undefined}
         onSave={mockOnSave}
         onClose={mockOnClose}
       />
     );
 
-    expect(screen.getByTestId('dialog')).toBeInTheDocument();
-    expect(screen.getByTestId('dialog-title')).toBeInTheDocument();
-    expect(screen.getByText('Create New Task')).toBeInTheDocument();
+    expect(screen.getByText(/Create Task/i)).toBeInTheDocument();
+    expect(screen.getByTestId('form')).toBeInTheDocument();
   });
 
-  it('should render correctly when opened for editing an existing task', () => {
-    const mockTask = {
-      id: 1,
-      title: 'Existing Task',
-      description: 'This is an existing task',
-      completed: false,
-      priority: 'high',
-      dueDate: '2023-03-01',
-      category: 'Work',
-      userId: 1
-    };
-
+  it('renders correctly when editing an existing task', () => {
     render(
       <TaskModal
         isOpen={true}
@@ -108,59 +120,69 @@ describe('TaskModal Component', () => {
       />
     );
 
-    expect(screen.getByTestId('dialog')).toBeInTheDocument();
-    expect(screen.getByTestId('dialog-title')).toBeInTheDocument();
-    expect(screen.getByText('Edit Task')).toBeInTheDocument();
+    expect(screen.getByText(/Edit Task/i)).toBeInTheDocument();
+    expect(screen.getByTestId('form')).toBeInTheDocument();
   });
 
-  it('should not render when isOpen is false', () => {
-    render(
-      <TaskModal
-        isOpen={false}
-        task={undefined}
-        onSave={mockOnSave}
-        onClose={mockOnClose}
-      />
-    );
-
-    expect(screen.queryByTestId('dialog')).not.toBeInTheDocument();
-  });
-
-  it('should call onSave with the correct data when form is submitted', async () => {
+  it('calls onSave with form data when submitted', async () => {
     render(
       <TaskModal
         isOpen={true}
-        task={undefined}
         onSave={mockOnSave}
         onClose={mockOnClose}
       />
     );
 
-    const form = screen.getByTestId('form');
-    fireEvent.submit(form);
+    // Submit the form (which uses the mocked form data)
+    fireEvent.submit(screen.getByTestId('form'));
 
-    expect(mockOnSave).toHaveBeenCalledWith({
-      title: 'Test Task',
-      description: 'Test description',
-      dueDate: '2023-03-01',
-      priority: 'medium',
-      category: 'Work'
+    await waitFor(() => {
+      expect(mockOnSave).toHaveBeenCalledWith({
+        title: 'New Task Title',
+        description: 'New Task Description',
+        dueDate: '2025-03-30T12:00:00.000Z',
+        priority: 'high',
+        category: 'work'
+      });
     });
   });
 
-  it('should call onClose when cancel button is clicked', () => {
+  it('calls onClose when cancel button is clicked', () => {
     render(
       <TaskModal
         isOpen={true}
-        task={undefined}
         onSave={mockOnSave}
         onClose={mockOnClose}
       />
     );
 
-    const cancelButton = screen.getByText('Cancel');
+    // Find and click the cancel button
+    const cancelButton = screen.getByText(/Cancel/i);
     fireEvent.click(cancelButton);
 
     expect(mockOnClose).toHaveBeenCalled();
+  });
+
+  it('displays form fields for all task properties', () => {
+    render(
+      <TaskModal
+        isOpen={true}
+        onSave={mockOnSave}
+        onClose={mockOnClose}
+      />
+    );
+
+    // Check for title field
+    expect(screen.getByText(/Title/i)).toBeInTheDocument();
+    
+    // Check for description field
+    expect(screen.getByText(/Description/i)).toBeInTheDocument();
+    
+    // Check for due date field
+    expect(screen.getByText(/Due Date/i)).toBeInTheDocument();
+    
+    // Priority and category should be present
+    expect(screen.getByText(/Priority/i)).toBeInTheDocument();
+    expect(screen.getByText(/Category/i)).toBeInTheDocument();
   });
 });

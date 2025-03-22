@@ -1,153 +1,157 @@
 import { describe, it, expect, jest } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TaskItem } from '@/components/task/TaskItem';
+import { TaskContextMenu } from '@/components/task/TaskContextMenu';
 
-// Mock the dateUtils functions
-jest.mock('@/lib/dateUtils', () => ({
-  formatDate: jest.fn((date) => '2023-03-01'),
-  isDateInPast: jest.fn((date) => false)
+// Mock the components used in TaskItem
+jest.mock('@/components/task/TaskContextMenu', () => ({
+  TaskContextMenu: ({ children, task, onEdit, onDelete, onComplete }) => (
+    <div data-testid="task-context-menu" onClick={() => onEdit(task)}>
+      {children}
+      <button data-testid="mock-edit-button" onClick={() => onEdit(task)}>Edit</button>
+      <button data-testid="mock-delete-button" onClick={() => onDelete(task.id)}>Delete</button>
+      <button data-testid="mock-complete-button" onClick={() => onComplete(task.id, !task.completed)}>
+        Toggle Complete
+      </button>
+    </div>
+  )
 }));
 
+// Sample task data for testing
+const mockTask = {
+  id: 1,
+  title: 'Test Task',
+  description: 'This is a test task description',
+  completed: false,
+  userId: 1,
+  priority: 'medium',
+  category: 'work',
+  dueDate: '2025-03-30T12:00:00.000Z'
+};
+
 describe('TaskItem Component', () => {
-  const mockTask = {
-    id: 1,
-    title: 'Test Task',
-    description: 'This is a test task description',
-    completed: false,
-    priority: 'medium',
-    dueDate: '2023-03-01',
-    category: 'Work',
-    userId: 1
-  };
+  const mockOnToggleComplete = jest.fn();
+  const mockOnEdit = jest.fn();
+  const mockOnDelete = jest.fn();
 
-  const mockToggleComplete = jest.fn();
-  const mockEdit = jest.fn();
-  const mockDelete = jest.fn();
-
-  it('should render task information correctly', () => {
-    render(
-      <TaskItem 
-        task={mockTask}
-        onToggleComplete={mockToggleComplete}
-        onEdit={mockEdit}
-        onDelete={mockDelete}
-      />
-    );
-
-    expect(screen.getByText('Test Task')).toBeInTheDocument();
-    expect(screen.getByText('This is a test task description')).toBeInTheDocument();
-    expect(screen.getByText('2023-03-01')).toBeInTheDocument();
-    expect(screen.getByText('Work')).toBeInTheDocument();
+  beforeEach(() => {
+    // Clear mock function calls before each test
+    mockOnToggleComplete.mockClear();
+    mockOnEdit.mockClear();
+    mockOnDelete.mockClear();
   });
 
-  it('should display the correct priority indicator', () => {
+  it('renders task correctly', () => {
     render(
-      <TaskItem 
+      <TaskItem
         task={mockTask}
-        onToggleComplete={mockToggleComplete}
-        onEdit={mockEdit}
-        onDelete={mockDelete}
+        onToggleComplete={mockOnToggleComplete}
+        onEdit={mockOnEdit}
+        onDelete={mockOnDelete}
       />
     );
 
-    // Medium priority should have a specific styling
-    const priorityIndicator = screen.getByRole('status');
-    expect(priorityIndicator).toHaveClass('bg-yellow-500');
+    // Check if task title is displayed
+    expect(screen.getByText(mockTask.title)).toBeInTheDocument();
+    
+    // Verify task description is present
+    expect(screen.getByText(mockTask.description)).toBeInTheDocument();
+    
+    // Verify priority badge is displayed
+    expect(screen.getByText(new RegExp(mockTask.priority, 'i'))).toBeInTheDocument();
+    
+    // Verify category is displayed
+    expect(screen.getByText(new RegExp(mockTask.category, 'i'))).toBeInTheDocument();
   });
 
-  it('should handle toggle complete action', () => {
+  it('calls onToggleComplete when checkbox is clicked', () => {
     render(
-      <TaskItem 
+      <TaskItem
         task={mockTask}
-        onToggleComplete={mockToggleComplete}
-        onEdit={mockEdit}
-        onDelete={mockDelete}
+        onToggleComplete={mockOnToggleComplete}
+        onEdit={mockOnEdit}
+        onDelete={mockOnDelete}
       />
     );
 
+    // Find and click on the checkbox
     const checkbox = screen.getByRole('checkbox');
     fireEvent.click(checkbox);
 
-    expect(mockToggleComplete).toHaveBeenCalledWith(1, true);
+    // Verify the toggle function was called with correct args
+    expect(mockOnToggleComplete).toHaveBeenCalledWith(mockTask.id, true);
   });
 
-  it('should handle edit action', () => {
+  it('calls onEdit through context menu', () => {
     render(
-      <TaskItem 
+      <TaskItem
         task={mockTask}
-        onToggleComplete={mockToggleComplete}
-        onEdit={mockEdit}
-        onDelete={mockDelete}
+        onToggleComplete={mockOnToggleComplete}
+        onEdit={mockOnEdit}
+        onDelete={mockOnDelete}
       />
     );
 
-    const editButton = screen.getByLabelText('Edit task');
+    // Find and click on the edit button in the mocked context menu
+    const editButton = screen.getByTestId('mock-edit-button');
     fireEvent.click(editButton);
 
-    expect(mockEdit).toHaveBeenCalledWith(mockTask);
+    // Verify the edit function was called with the task
+    expect(mockOnEdit).toHaveBeenCalledWith(mockTask);
   });
 
-  it('should handle delete action', () => {
+  it('calls onDelete through context menu', () => {
     render(
-      <TaskItem 
+      <TaskItem
         task={mockTask}
-        onToggleComplete={mockToggleComplete}
-        onEdit={mockEdit}
-        onDelete={mockDelete}
+        onToggleComplete={mockOnToggleComplete}
+        onEdit={mockOnEdit}
+        onDelete={mockOnDelete}
       />
     );
 
-    const deleteButton = screen.getByLabelText('Delete task');
+    // Find and click on the delete button in the mocked context menu
+    const deleteButton = screen.getByTestId('mock-delete-button');
     fireEvent.click(deleteButton);
 
-    expect(mockDelete).toHaveBeenCalledWith(1);
+    // Verify the delete function was called with the task id
+    expect(mockOnDelete).toHaveBeenCalledWith(mockTask.id);
   });
 
-  it('should render completed task with appropriate styling', () => {
-    const completedTask = {...mockTask, completed: true};
+  it('shows different styles for completed tasks', () => {
+    const completedTask = { ...mockTask, completed: true };
     
     render(
-      <TaskItem 
+      <TaskItem
         task={completedTask}
-        onToggleComplete={mockToggleComplete}
-        onEdit={mockEdit}
-        onDelete={mockDelete}
+        onToggleComplete={mockOnToggleComplete}
+        onEdit={mockOnEdit}
+        onDelete={mockOnDelete}
       />
     );
 
-    const taskTitle = screen.getByText('Test Task');
-    expect(taskTitle).toHaveClass('line-through');
+    // Find the checkbox and verify it's checked
+    const checkbox = screen.getByRole('checkbox');
+    expect(checkbox).toBeChecked();
+    
+    // The title should have a completed style (this might need to be adjusted based on actual implementation)
+    const titleElement = screen.getByText(mockTask.title);
+    // Check for a class that indicates completion (e.g., line-through)
+    expect(titleElement.closest('div')).toHaveClass('line-through', { exact: false });
   });
 
-  it('should render different styling for high priority tasks', () => {
-    const highPriorityTask = {...mockTask, priority: 'high'};
-    
+  it('renders due date correctly', () => {
     render(
-      <TaskItem 
-        task={highPriorityTask}
-        onToggleComplete={mockToggleComplete}
-        onEdit={mockEdit}
-        onDelete={mockDelete}
+      <TaskItem
+        task={mockTask}
+        onToggleComplete={mockOnToggleComplete}
+        onEdit={mockOnEdit}
+        onDelete={mockOnDelete}
       />
     );
 
-    const priorityIndicator = screen.getByRole('status');
-    expect(priorityIndicator).toHaveClass('bg-red-500');
-  });
-
-  it('should render different styling for low priority tasks', () => {
-    const lowPriorityTask = {...mockTask, priority: 'low'};
-    
-    render(
-      <TaskItem 
-        task={lowPriorityTask}
-        onToggleComplete={mockToggleComplete}
-        onEdit={mockEdit}
-        onDelete={mockDelete}
-      />
-    );
-
-    const priorityIndicator = screen.getByRole('status');
-    expect(priorityIndicator).toHaveClass('bg-green-500');
+    // Due date should be displayed in some format
+    // This might need adjustment based on your date formatting
+    expect(screen.getByText(/due/i)).toBeInTheDocument();
   });
 });

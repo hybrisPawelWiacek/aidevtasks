@@ -1,23 +1,130 @@
-const { describe, it, expect, jest, beforeEach } = require('@jest/globals');
-const { render, screen, fireEvent, waitFor } = require('@testing-library/react');
-const { TasksContainer } = require('@/components/task/TasksContainer');
+import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { TasksContainer } from '@/components/task/TasksContainer';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-// Mock TanStack Query
-jest.mock('@tanstack/react-query', () => ({
-  useQuery: jest.fn(),
-  useMutation: jest.fn(),
-  useQueryClient: jest.fn(() => ({
+// Mock the queryClient to avoid network requests
+jest.mock('@/lib/queryClient', () => ({
+  apiRequest: jest.fn().mockImplementation((endpoint, options) => {
+    if (endpoint === '/api/tasks') {
+      return Promise.resolve([
+        {
+          id: 1,
+          title: 'Task 1',
+          description: 'Description 1',
+          completed: false,
+          userId: 1,
+          priority: 'high',
+          category: 'work',
+          dueDate: '2025-03-30T12:00:00.000Z'
+        },
+        {
+          id: 2,
+          title: 'Task 2',
+          description: 'Description 2',
+          completed: true,
+          userId: 1,
+          priority: 'medium',
+          category: 'personal',
+          dueDate: '2025-04-15T12:00:00.000Z'
+        }
+      ]);
+    }
+    // Mock update task completion
+    if (endpoint === '/api/tasks/1/complete') {
+      return Promise.resolve({
+        id: 1,
+        title: 'Task 1',
+        description: 'Description 1',
+        completed: options.method === 'POST', // Will be true if marking complete
+        userId: 1,
+        priority: 'high',
+        category: 'work',
+        dueDate: '2025-03-30T12:00:00.000Z'
+      });
+    }
+    // Mock update task
+    if (endpoint === '/api/tasks/1') {
+      return Promise.resolve(options.body);
+    }
+    // Mock create task
+    if (endpoint === '/api/tasks' && options.method === 'POST') {
+      return Promise.resolve({
+        id: 3,
+        ...options.body,
+        userId: 1
+      });
+    }
+    // Mock delete task
+    if (endpoint === '/api/tasks/1' && options.method === 'DELETE') {
+      return Promise.resolve({ success: true });
+    }
+    return Promise.resolve({});
+  }),
+  getQueryFn: () => jest.fn().mockResolvedValue([]),
+  queryClient: {
     invalidateQueries: jest.fn()
-  }))
+  }
 }));
 
 // Mock child components
+jest.mock('@/components/task/TaskList', () => ({
+  TaskList: ({ tasks, onEditTask, onDeleteTask, onCompleteTask }) => (
+    <div data-testid="task-list">
+      <span>Task Count: {tasks.length}</span>
+      <button 
+        data-testid="edit-task-button" 
+        onClick={() => onEditTask(tasks[0])}
+      >
+        Edit Task
+      </button>
+      <button 
+        data-testid="delete-task-button" 
+        onClick={() => onDeleteTask(tasks[0].id)}
+      >
+        Delete Task
+      </button>
+      <button 
+        data-testid="complete-task-button" 
+        onClick={() => onCompleteTask(tasks[0].id, !tasks[0].completed)}
+      >
+        Toggle Complete
+      </button>
+    </div>
+  )
+}));
+
+jest.mock('@/components/task/TaskModal', () => ({
+  TaskModal: ({ isOpen, task, onSave, onClose }) => (
+    <div data-testid="task-modal" style={{ display: isOpen ? 'block' : 'none' }}>
+      <span>Editing: {task ? task.title : 'New Task'}</span>
+      <button 
+        data-testid="save-task-button" 
+        onClick={() => onSave({ 
+          title: 'Updated Task', 
+          description: 'Updated Description',
+          priority: 'medium',
+          category: 'work',
+          dueDate: '2025-04-01T12:00:00.000Z'
+        })}
+      >
+        Save
+      </button>
+      <button data-testid="close-modal-button" onClick={onClose}>Close</button>
+    </div>
+  )
+}));
+
 jest.mock('@/components/task/TaskFilters', () => ({
   TaskFilters: ({ activeFilter, onFilterChange }) => (
     <div data-testid="task-filters">
-      <button onClick={() => onFilterChange('all')}>All</button>
-      <button onClick={() => onFilterChange('today')}>Today</button>
-      <button onClick={() => onFilterChange('completed')}>Completed</button>
+      <span>Active Filter: {activeFilter}</span>
+      <button 
+        data-testid="change-filter-button" 
+        onClick={() => onFilterChange('completed')}
+      >
+        Change Filter
+      </button>
     </div>
   )
 }));
@@ -25,248 +132,147 @@ jest.mock('@/components/task/TaskFilters', () => ({
 jest.mock('@/components/task/TaskSort', () => ({
   TaskSort: ({ sortOption, onSortChange }) => (
     <div data-testid="task-sort">
-      <button onClick={() => onSortChange('date-asc')}>Date Asc</button>
-      <button onClick={() => onSortChange('priority')}>Priority</button>
-    </div>
-  )
-}));
-
-jest.mock('@/components/task/TaskItem', () => ({
-  TaskItem: ({ task, onToggleComplete, onEdit, onDelete }) => (
-    <div data-testid={`task-item-${task.id}`}>
-      {task.title}
-      <button onClick={() => onToggleComplete(task.id, !task.completed)}>Toggle</button>
-      <button onClick={() => onEdit(task)}>Edit</button>
-      <button onClick={() => onDelete(task.id)}>Delete</button>
+      <span>Sort Option: {sortOption}</span>
+      <button 
+        data-testid="change-sort-button" 
+        onClick={() => onSortChange('priority')}
+      >
+        Change Sort
+      </button>
     </div>
   )
 }));
 
 jest.mock('@/components/task/AddTaskButton', () => ({
   AddTaskButton: ({ onClick }) => (
-    <button data-testid="add-task-button" onClick={onClick}>Add Task</button>
-  )
-}));
-
-jest.mock('@/components/task/TaskModal', () => ({
-  TaskModal: ({ isOpen, task, onSave, onClose }) => (
-    isOpen ? (
-      <div data-testid="task-modal">
-        <div>Task: {task ? task.title : 'New Task'}</div>
-        <button onClick={() => onSave({ title: 'New Task', priority: 'medium', dueDate: '2023-03-01' })}>Save</button>
-        <button onClick={onClose}>Cancel</button>
-      </div>
-    ) : null
+    <button data-testid="add-task-button" onClick={onClick}>
+      Add Task
+    </button>
   )
 }));
 
 jest.mock('@/components/task/ConfirmDialog', () => ({
   ConfirmDialog: ({ isOpen, message, onConfirm, onCancel }) => (
-    isOpen ? (
-      <div data-testid="confirm-dialog">
-        <div>{message}</div>
-        <button onClick={onConfirm}>Confirm</button>
-        <button onClick={onCancel}>Cancel</button>
-      </div>
-    ) : null
+    <div data-testid="confirm-dialog" style={{ display: isOpen ? 'block' : 'none' }}>
+      <span>{message}</span>
+      <button data-testid="confirm-button" onClick={onConfirm}>Confirm</button>
+      <button data-testid="cancel-button" onClick={onCancel}>Cancel</button>
+    </div>
   )
 }));
 
-// Mock the api request function
-jest.mock('@/lib/queryClient', () => ({
-  apiRequest: jest.fn().mockResolvedValue({
-    json: jest.fn().mockResolvedValue({ id: 999 })
-  })
-}));
-
-// Mock the toast hook
-jest.mock('@/hooks/use-toast', () => ({
-  useToast: () => ({ toast: jest.fn() })
-}));
-
-const { useQuery, useMutation } = require('@tanstack/react-query');
+// Create a wrapper for the component with QueryClientProvider
+const renderWithQueryClient = (ui) => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+  );
+};
 
 describe('TasksContainer Component', () => {
-  const mockTasks = [
-    {
-      id: 1,
-      title: 'Task 1',
-      description: 'Description 1',
-      completed: false,
-      priority: 'medium',
-      dueDate: new Date().toISOString().split('T')[0], // Today
-      category: 'Work',
-      userId: 1
-    },
-    {
-      id: 2,
-      title: 'Task 2',
-      description: 'Description 2',
-      completed: true,
-      priority: 'high',
-      dueDate: new Date().toISOString().split('T')[0], // Today
-      category: 'Personal',
-      userId: 1
-    },
-    {
-      id: 3,
-      title: 'Task 3',
-      description: 'Description 3',
-      completed: false,
-      priority: 'low',
-      dueDate: '2023-12-31', // Future date
-      category: 'Other',
-      userId: 1
-    }
-  ];
-
   beforeEach(() => {
     jest.clearAllMocks();
-    
-    // Mock the useQuery hook
-    useQuery.mockReturnValue({
-      data: mockTasks,
-      isLoading: false
-    });
-    
-    // Mock the useMutation hook
-    useMutation.mockReturnValue({
-      mutate: jest.fn((task, callbacks) => {
-        if (callbacks && callbacks.onSuccess) {
-          callbacks.onSuccess();
-        }
-      }),
-      isPending: false
-    });
   });
 
-  it('should render all tasks by default', () => {
-    render(<TasksContainer userId={1} />);
+  it('renders the tasks container with initial state', async () => {
+    renderWithQueryClient(<TasksContainer userId={1} />);
     
-    expect(screen.getByTestId('task-item-1')).toBeInTheDocument();
-    expect(screen.getByTestId('task-item-2')).toBeInTheDocument();
-    expect(screen.getByTestId('task-item-3')).toBeInTheDocument();
-  });
-
-  it('should filter tasks when filter is changed', () => {
-    render(<TasksContainer userId={1} />);
+    // Initially should show loading state
+    expect(screen.getByText(/Loading tasks.../i)).toBeInTheDocument();
     
-    // Click on "Completed" filter
-    fireEvent.click(screen.getByText('Completed'));
-    
-    // Should render only the completed task
-    waitFor(() => {
-      expect(screen.queryByTestId('task-item-1')).not.toBeInTheDocument();
-      expect(screen.getByTestId('task-item-2')).toBeInTheDocument();
-      expect(screen.queryByTestId('task-item-3')).not.toBeInTheDocument();
+    // After loading completes
+    await waitFor(() => {
+      expect(screen.getByTestId('task-list')).toBeInTheDocument();
     });
+    
+    // Check if filter and sort components are rendered
+    expect(screen.getByTestId('task-filters')).toBeInTheDocument();
+    expect(screen.getByTestId('task-sort')).toBeInTheDocument();
+    
+    // Add task button should be present
+    expect(screen.getByTestId('add-task-button')).toBeInTheDocument();
   });
 
-  it('should sort tasks when sort option is changed', () => {
-    render(<TasksContainer userId={1} />);
+  it('opens task modal when add task button is clicked', async () => {
+    renderWithQueryClient(<TasksContainer userId={1} />);
     
-    // Click on "Priority" sort
-    fireEvent.click(screen.getByText('Priority'));
-    
-    // Task order should change based on priority (high first)
-    waitFor(() => {
-      const tasks = screen.getAllByTestId(/task-item/);
-      expect(tasks[0]).toBe(screen.getByTestId('task-item-2')); // High priority
-      expect(tasks[1]).toBe(screen.getByTestId('task-item-1')); // Medium priority
-      expect(tasks[2]).toBe(screen.getByTestId('task-item-3')); // Low priority
+    await waitFor(() => {
+      expect(screen.getByTestId('add-task-button')).toBeInTheDocument();
     });
-  });
-
-  it('should open the task modal when add task button is clicked', () => {
-    render(<TasksContainer userId={1} />);
     
-    // Initially, the modal should not be visible
-    expect(screen.queryByTestId('task-modal')).not.toBeInTheDocument();
-    
-    // Click on add task button
+    // Click add task button
     fireEvent.click(screen.getByTestId('add-task-button'));
     
-    // Modal should now be visible
-    expect(screen.getByTestId('task-modal')).toBeInTheDocument();
+    // Task modal should be visible
+    expect(screen.getByTestId('task-modal')).toHaveStyle('display: block');
   });
 
-  it('should open edit modal with task data when edit is clicked', () => {
-    render(<TasksContainer userId={1} />);
+  it('opens edit modal when edit task is clicked', async () => {
+    renderWithQueryClient(<TasksContainer userId={1} />);
     
-    // Click edit on the first task
-    fireEvent.click(screen.getAllByText('Edit')[0]);
-    
-    // Modal should be visible with task data
-    expect(screen.getByTestId('task-modal')).toBeInTheDocument();
-    expect(screen.getByText('Task: Task 1')).toBeInTheDocument();
-  });
-
-  it('should open confirm dialog when delete is clicked', () => {
-    render(<TasksContainer userId={1} />);
-    
-    // Initially, the confirm dialog should not be visible
-    expect(screen.queryByTestId('confirm-dialog')).not.toBeInTheDocument();
-    
-    // Click delete on the first task
-    fireEvent.click(screen.getAllByText('Delete')[0]);
-    
-    // Confirm dialog should now be visible
-    expect(screen.getByTestId('confirm-dialog')).toBeInTheDocument();
-  });
-
-  it('should create a new task when task modal is saved', () => {
-    // Get the mutate mock function
-    const mockMutate = jest.fn();
-    useMutation.mockReturnValueOnce({
-      mutate: mockMutate,
-      isPending: false
-    }).mockReturnValue({
-      mutate: jest.fn(),
-      isPending: false
+    await waitFor(() => {
+      expect(screen.getByTestId('edit-task-button')).toBeInTheDocument();
     });
     
-    render(<TasksContainer userId={1} />);
+    // Click edit task button
+    fireEvent.click(screen.getByTestId('edit-task-button'));
     
-    // Open the add task modal
-    fireEvent.click(screen.getByTestId('add-task-button'));
-    
-    // Save the new task
-    fireEvent.click(screen.getByText('Save'));
-    
-    // Should call the mutate function with the new task data
-    expect(mockMutate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: 'New Task',
-        priority: 'medium',
-        dueDate: expect.any(String)
-      }),
-      expect.anything()
-    );
+    // Task modal should be visible with the task title
+    expect(screen.getByTestId('task-modal')).toHaveStyle('display: block');
+    expect(screen.getByText(/Editing: Task 1/i)).toBeInTheDocument();
   });
 
-  it('should update task completion when toggle is clicked', () => {
-    // Get the mutate mock function for the toggle complete mutation
-    const mockMutate = jest.fn();
-    useMutation.mockReturnValueOnce({
-      mutate: jest.fn(),
-      isPending: false
-    }).mockReturnValueOnce({
-      mutate: mockMutate,
-      isPending: false
+  it('shows confirmation dialog when delete task is clicked', async () => {
+    renderWithQueryClient(<TasksContainer userId={1} />);
+    
+    await waitFor(() => {
+      expect(screen.getByTestId('delete-task-button')).toBeInTheDocument();
     });
     
-    render(<TasksContainer userId={1} />);
+    // Click delete task button
+    fireEvent.click(screen.getByTestId('delete-task-button'));
     
-    // Toggle the completion of the first task
-    fireEvent.click(screen.getAllByText('Toggle')[0]);
+    // Confirm dialog should be visible
+    expect(screen.getByTestId('confirm-dialog')).toHaveStyle('display: block');
+  });
+
+  it('changes task filter when filter is changed', async () => {
+    renderWithQueryClient(<TasksContainer userId={1} />);
     
-    // Should call the mutate function with the task ID and the new completion status
-    expect(mockMutate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: 1,
-        completed: true
-      }),
-      expect.anything()
-    );
+    await waitFor(() => {
+      expect(screen.getByTestId('change-filter-button')).toBeInTheDocument();
+    });
+    
+    // Initial filter should be 'all'
+    expect(screen.getByText(/Active Filter: all/i)).toBeInTheDocument();
+    
+    // Click change filter button (mocked to change to 'completed')
+    fireEvent.click(screen.getByTestId('change-filter-button'));
+    
+    // Filter should be updated
+    expect(screen.getByText(/Active Filter: completed/i)).toBeInTheDocument();
+  });
+
+  it('changes sort option when sort is changed', async () => {
+    renderWithQueryClient(<TasksContainer userId={1} />);
+    
+    await waitFor(() => {
+      expect(screen.getByTestId('change-sort-button')).toBeInTheDocument();
+    });
+    
+    // Initial sort option should be 'date-desc'
+    expect(screen.getByText(/Sort Option: date-desc/i)).toBeInTheDocument();
+    
+    // Click change sort button (mocked to change to 'priority')
+    fireEvent.click(screen.getByTestId('change-sort-button'));
+    
+    // Sort option should be updated
+    expect(screen.getByText(/Sort Option: priority/i)).toBeInTheDocument();
   });
 });

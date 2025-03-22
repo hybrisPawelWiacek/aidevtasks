@@ -1,104 +1,93 @@
-# TaskHub Test Suite
+# TaskHub Testing Documentation
 
-This directory contains test cases for the TaskHub application. The tests are organized into different categories to ensure comprehensive coverage of the application's functionality.
+This directory contains comprehensive tests for the TaskHub application, providing coverage for both frontend components and backend services.
 
 ## Test Structure
 
-The test suite is organized into the following structure:
+The tests are organized into the following structure:
 
 ```
 tests/
-├── unit/              # Unit tests for individual components
-│   ├── auth/          # Tests for authentication components
-│   └── task/          # Tests for task management components
-├── integration/       # Tests for integration between components
-│   ├── api/           # Tests for API endpoints
-│   └── database/      # Tests for database operations
-└── e2e/               # End-to-end tests
-    └── flows/         # Tests for complete user flows
+├── unit/              # Tests for individual components
+│   ├── auth/          # Authentication components tests
+│   └── task/          # Task-related components tests
+├── integration/       # Integration tests across components
+│   ├── api/           # API endpoint integration tests
+│   └── database/      # Database interaction tests
+├── setup.js           # Jest setup file
+└── README.md          # This documentation
 ```
 
 ## Running Tests
 
-To run the entire test suite:
+You can run the tests using the provided shell script:
 
 ```bash
-npm test
-```
+# Run all tests
+./run-tests.sh
 
-To run specific test categories:
-
-```bash
 # Run only unit tests
-npm run test:unit
+./run-tests.sh tests/unit
 
-# Run only integration tests
-npm run test:integration
-
-# Run only end-to-end tests
-npm run test:e2e
-```
-
-To run a specific test file:
-
-```bash
-npm test -- tests/path/to/test-file.js
+# Run specific test file
+./run-tests.sh tests/unit/auth/auth.test.js
 ```
 
 ## Test Coverage
 
-The test suite covers the following key areas:
+The test suite provides coverage for the following key areas:
 
 ### Unit Tests
 
-1. **Authentication Components**
-   - `LoginButton`: Tests for rendering and click event handling
-   - `AuthModal`: Tests for rendering, form handling, validation, and submission
+- **Authentication Components**
+  - AuthContext: Authentication state management
+  - LoginButton: Sign-in functionality
+  - AuthModal: Login/Register form switching and submission
 
-2. **Task Management Components**
-   - `TaskItem`: Tests for rendering, state management, and user interactions
-   - `TaskModal`: Tests for form validation, submission, and UI rendering
-   - `TasksContainer`: Tests for task filtering, sorting, and CRUD operations
+- **Task Management Components**
+  - TaskItem: Individual task display and interaction
+  - TaskModal: Task creation and editing form
+  - TasksContainer: Task filtering, sorting, and CRUD operations
 
 ### Integration Tests
 
-1. **API Endpoints**
-   - `auth.api.test.js`: Tests for registration, login, status checking, and logout
-   - `task.api.test.js`: Tests for task creation, retrieval, updating, and deletion
+- **API Endpoints**
+  - Auth API: Registration, login, logout, and status endpoints
+  - Task API: Task creation, retrieval, updates, and deletion endpoints
 
-2. **Database Operations**
-   - `storage.test.js`: Tests for database access, data persistence, and data retrieval
-
-### End-to-End Tests (Future Implementation)
-
-1. **User Flows**
-   - User registration and login
-   - Task creation, editing, and deletion
-   - Task filtering and sorting
+- **Database Operations**
+  - User operations: Creating, retrieving, and updating users
+  - Task operations: Creating, retrieving, updating, and deleting tasks
 
 ## Mocking Strategy
 
-The test suite uses Jest's mocking capabilities to isolate components during testing:
+The tests use the following mocking strategies to ensure isolation and reproducibility:
 
-- External dependencies are mocked to prevent network calls and database operations
-- Authentication contexts are mocked to simulate different user states
-- API responses are mocked to test various scenarios and error handling
+- **Component Mocks**: Child components are mocked to focus testing on the component under test
+- **API Mocks**: The `apiRequest` function from `queryClient` is mocked to simulate backend responses
+- **Database Mocks**: Database operations are mocked to provide a controlled test environment
+- **Authentication Mocks**: Authentication state and session handling are mocked for testing protected routes
+
+## Test Environment Setup
+
+The test environment is configured in `setup.js` to provide:
+
+- Mock implementations of browser APIs (window, document, etc.)
+- Mock implementations of Vite-specific features (import.meta.env)
+- Spy/mock implementations for console methods to reduce test output noise
 
 ## Best Practices
 
-When adding new tests, please follow these best practices:
+When writing additional tests, follow these best practices:
 
-1. **Test Isolation**: Ensure each test is independent and doesn't rely on other tests
-2. **Clear Test Names**: Use descriptive names that explain what is being tested
-3. **Setup and Teardown**: Use `beforeEach` and `afterEach` for proper test setup and cleanup
-4. **Mock External Dependencies**: Avoid real network calls or database operations in unit tests
-5. **Test Edge Cases**: Include tests for error handling and edge cases
+1. **Isolation**: Test components in isolation by mocking dependencies
+2. **Reproducibility**: Ensure tests are deterministic and don't depend on external state
+3. **Readability**: Use descriptive test names and organize tests logically
+4. **Coverage**: Test both happy paths and error conditions
+5. **Performance**: Keep tests focused and fast by minimizing unnecessary setup
 
-## Troubleshooting
+## Known Limitations
 
-If you encounter issues with the tests:
-
-1. Make sure all dependencies are installed (`npm install`)
-2. Ensure the test environment is properly set up
-3. Check for any pending migrations or database setup requirements
-4. Look for any mock implementations that may need updating
+- End-to-end tests are not included in this test suite
+- Some tests may require adjustments if component implementations change significantly
+- Vite-specific environment variables require special handling in the test environment

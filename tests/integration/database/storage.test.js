@@ -1,273 +1,385 @@
-const { describe, it, expect, beforeEach, afterEach, jest } = require('@jest/globals');
-const { PostgresStorage } = require('../../../server/pg-storage');
-const { db } = require('../../../server/db');
+import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import { PostgresStorage } from '../../../server/pg-storage';
+import * as db from '../../../server/db';
+import { users, tasks } from '../../../shared/schema';
+import { eq } from 'drizzle-orm';
 
-// Mock the Drizzle ORM
-jest.mock('../../../server/db', () => ({
-  db: {
-    select: jest.fn(() => ({
-      from: jest.fn(() => ({
-        where: jest.fn(() => ({
-          limit: jest.fn().mockResolvedValue([])
-        }))
-      }))
+// Mock database module
+jest.mock('../../../server/db', () => {
+  // Track inserted and modified data
+  const dbState = {
+    users: [
+      {
+        id: 1,
+        username: 'testuser',
+        displayName: 'Test User',
+        email: 'test@example.com',
+        password: 'hashed_password',
+        photoURL: null,
+        googleId: null
+      }
+    ],
+    tasks: [
+      {
+        id: 1,
+        title: 'Task 1',
+        description: 'Description 1',
+        completed: false,
+        userId: 1,
+        priority: 'high',
+        category: 'work',
+        dueDate: new Date('2025-03-30T12:00:00.000Z')
+      },
+      {
+        id: 2,
+        title: 'Task 2',
+        description: 'Description 2',
+        completed: true,
+        userId: 1,
+        priority: 'medium',
+        category: 'personal',
+        dueDate: new Date('2025-04-15T12:00:00.000Z')
+      }
+    ]
+  };
+
+  // Reset the dbState between tests
+  const resetState = () => {
+    dbState.users = [
+      {
+        id: 1,
+        username: 'testuser',
+        displayName: 'Test User',
+        email: 'test@example.com',
+        password: 'hashed_password',
+        photoURL: null,
+        googleId: null
+      }
+    ];
+    dbState.tasks = [
+      {
+        id: 1,
+        title: 'Task 1',
+        description: 'Description 1',
+        completed: false,
+        userId: 1,
+        priority: 'high',
+        category: 'work',
+        dueDate: new Date('2025-03-30T12:00:00.000Z')
+      },
+      {
+        id: 2,
+        title: 'Task 2',
+        description: 'Description 2',
+        completed: true,
+        userId: 1,
+        priority: 'medium',
+        category: 'personal',
+        dueDate: new Date('2025-04-15T12:00:00.000Z')
+      }
+    ];
+  };
+
+  // Mock DB object with query methods
+  const mockDb = {
+    select: jest.fn().mockImplementation((fields) => ({
+      from: (table) => ({
+        where: (condition) => {
+          // Handle user queries
+          if (table === users) {
+            if (condition && condition.left && condition.left.name === 'id') {
+              const id = condition.right;
+              return Promise.resolve(dbState.users.filter(user => user.id === id));
+            }
+            if (condition && condition.left && condition.left.name === 'username') {
+              const username = condition.right;
+              return Promise.resolve(dbState.users.filter(user => user.username === username));
+            }
+            if (condition && condition.left && condition.left.name === 'email') {
+              const email = condition.right;
+              return Promise.resolve(dbState.users.filter(user => user.email === email));
+            }
+            return Promise.resolve(dbState.users);
+          }
+          
+          // Handle task queries
+          if (table === tasks) {
+            if (condition && condition.left && condition.left.name === 'id') {
+              const id = condition.right;
+              return Promise.resolve(dbState.tasks.filter(task => task.id === id));
+            }
+            if (condition && condition.left && condition.left.name === 'userId') {
+              const userId = condition.right;
+              return Promise.resolve(dbState.tasks.filter(task => task.userId === userId));
+            }
+            return Promise.resolve(dbState.tasks);
+          }
+          
+          return Promise.resolve([]);
+        }
+      })
     })),
-    insert: jest.fn(() => ({
-      values: jest.fn(() => ({
-        returning: jest.fn().mockResolvedValue([])
-      }))
+    
+    insert: jest.fn().mockImplementation((table) => ({
+      values: (data) => ({
+        returning: () => {
+          if (table === users) {
+            const newUser = { 
+              id: dbState.users.length > 0 ? Math.max(...dbState.users.map(u => u.id)) + 1 : 1,
+              ...data 
+            };
+            dbState.users.push(newUser);
+            return Promise.resolve([newUser]);
+          }
+          
+          if (table === tasks) {
+            const newTask = { 
+              id: dbState.tasks.length > 0 ? Math.max(...dbState.tasks.map(t => t.id)) + 1 : 1,
+              ...data,
+              dueDate: data.dueDate ? new Date(data.dueDate) : null
+            };
+            dbState.tasks.push(newTask);
+            return Promise.resolve([newTask]);
+          }
+          
+          return Promise.resolve([data]);
+        }
+      })
     })),
-    update: jest.fn(() => ({
-      set: jest.fn(() => ({
-        where: jest.fn(() => ({
-          returning: jest.fn().mockResolvedValue([])
-        }))
-      }))
+    
+    update: jest.fn().mockImplementation((table) => ({
+      set: (updateData) => ({
+        where: (condition) => ({
+          returning: () => {
+            if (table === users && condition.left && condition.left.name === 'id') {
+              const userId = condition.right;
+              const userIndex = dbState.users.findIndex(user => user.id === userId);
+              
+              if (userIndex >= 0) {
+                dbState.users[userIndex] = { ...dbState.users[userIndex], ...updateData };
+                return Promise.resolve([dbState.users[userIndex]]);
+              }
+            }
+            
+            if (table === tasks && condition.left && condition.left.name === 'id') {
+              const taskId = condition.right;
+              const taskIndex = dbState.tasks.findIndex(task => task.id === taskId);
+              
+              if (taskIndex >= 0) {
+                dbState.tasks[taskIndex] = { 
+                  ...dbState.tasks[taskIndex], 
+                  ...updateData,
+                  dueDate: updateData.dueDate ? new Date(updateData.dueDate) : dbState.tasks[taskIndex].dueDate
+                };
+                return Promise.resolve([dbState.tasks[taskIndex]]);
+              }
+            }
+            
+            return Promise.resolve([]);
+          }
+        })
+      })
     })),
-    delete: jest.fn(() => ({
-      where: jest.fn(() => ({
-        returning: jest.fn().mockResolvedValue([])
-      }))
+    
+    delete: jest.fn().mockImplementation((table) => ({
+      where: (condition) => ({
+        returning: () => {
+          if (table === tasks && condition.left && condition.left.name === 'id') {
+            const taskId = condition.right;
+            const taskIndex = dbState.tasks.findIndex(task => task.id === taskId);
+            
+            if (taskIndex >= 0) {
+              const deletedTask = dbState.tasks[taskIndex];
+              dbState.tasks.splice(taskIndex, 1);
+              return Promise.resolve([deletedTask]);
+            }
+          }
+          
+          return Promise.resolve([]);
+        }
+      })
     }))
-  }
-}));
+  };
 
-// Mock the schema
-jest.mock('@shared/schema', () => ({
-  users: { id: { name: 'id' }, username: { name: 'username' }, email: { name: 'email' } },
-  tasks: { id: { name: 'id' }, userId: { name: 'user_id' } }
-}));
+  return {
+    ...jest.requireActual('../../../server/db'),
+    db: mockDb,
+    resetMockDbState: resetState
+  };
+});
 
-describe('PostgresStorage', () => {
+describe('PostgresStorage Integration Tests', () => {
   let storage;
-
+  
   beforeEach(() => {
+    // Reset the mock database state before each test
+    db.resetMockDbState && db.resetMockDbState();
+    
+    // Create a new instance of PostgresStorage for each test
     storage = new PostgresStorage();
+  });
+  
+  afterEach(() => {
     jest.clearAllMocks();
   });
-
-  describe('User Operations', () => {
-    it('should fetch a user by ID', async () => {
-      const mockUser = { id: 1, username: 'testuser', email: 'test@example.com' };
+  
+  describe('User operations', () => {
+    it('should get a user by ID', async () => {
+      const user = await storage.getUser(1);
       
-      // Set up the mock to return a user
-      const mockLimit = jest.fn().mockResolvedValue([mockUser]);
-      const mockWhere = jest.fn(() => ({ limit: mockLimit }));
-      const mockFrom = jest.fn(() => ({ where: mockWhere }));
-      db.select.mockReturnValue({ from: mockFrom });
-      
-      const result = await storage.getUser(1);
-      
-      expect(result).toEqual(mockUser);
-      expect(db.select).toHaveBeenCalled();
-      expect(mockFrom).toHaveBeenCalled();
-      expect(mockWhere).toHaveBeenCalled();
-      expect(mockLimit).toHaveBeenCalledWith(1);
+      expect(user).toBeDefined();
+      expect(user.id).toBe(1);
+      expect(user.username).toBe('testuser');
     });
-
-    it('should fetch a user by username', async () => {
-      const mockUser = { id: 1, username: 'testuser', email: 'test@example.com' };
+    
+    it('should return undefined for non-existent user ID', async () => {
+      const user = await storage.getUser(999);
       
-      // Set up the mock to return a user
-      const mockLimit = jest.fn().mockResolvedValue([mockUser]);
-      const mockWhere = jest.fn(() => ({ limit: mockLimit }));
-      const mockFrom = jest.fn(() => ({ where: mockWhere }));
-      db.select.mockReturnValue({ from: mockFrom });
-      
-      const result = await storage.getUserByUsername('testuser');
-      
-      expect(result).toEqual(mockUser);
-      expect(db.select).toHaveBeenCalled();
-      expect(mockFrom).toHaveBeenCalled();
-      expect(mockWhere).toHaveBeenCalled();
-      expect(mockLimit).toHaveBeenCalledWith(1);
+      expect(user).toBeUndefined();
     });
-
-    it('should fetch a user by email', async () => {
-      const mockUser = { id: 1, username: 'testuser', email: 'test@example.com' };
+    
+    it('should get a user by username', async () => {
+      const user = await storage.getUserByUsername('testuser');
       
-      // Set up the mock to return a user
-      const mockLimit = jest.fn().mockResolvedValue([mockUser]);
-      const mockWhere = jest.fn(() => ({ limit: mockLimit }));
-      const mockFrom = jest.fn(() => ({ where: mockWhere }));
-      db.select.mockReturnValue({ from: mockFrom });
-      
-      const result = await storage.getUserByEmail('test@example.com');
-      
-      expect(result).toEqual(mockUser);
-      expect(db.select).toHaveBeenCalled();
-      expect(mockFrom).toHaveBeenCalled();
-      expect(mockWhere).toHaveBeenCalled();
-      expect(mockLimit).toHaveBeenCalledWith(1);
+      expect(user).toBeDefined();
+      expect(user.username).toBe('testuser');
     });
-
-    it('should create a user', async () => {
-      const newUser = { username: 'newuser', email: 'new@example.com', displayName: 'New User' };
-      const createdUser = { id: 2, ...newUser };
+    
+    it('should get a user by email', async () => {
+      const user = await storage.getUserByEmail('test@example.com');
       
-      // Set up the mock to return a created user
-      const mockReturning = jest.fn().mockResolvedValue([createdUser]);
-      const mockValues = jest.fn(() => ({ returning: mockReturning }));
-      db.insert.mockReturnValue({ values: mockValues });
-      
-      const result = await storage.createUser(newUser);
-      
-      expect(result).toEqual(createdUser);
-      expect(db.insert).toHaveBeenCalled();
-      expect(mockValues).toHaveBeenCalledWith(newUser);
-      expect(mockReturning).toHaveBeenCalled();
+      expect(user).toBeDefined();
+      expect(user.email).toBe('test@example.com');
     });
-
+    
+    it('should create a new user', async () => {
+      const newUser = {
+        username: 'newuser',
+        displayName: 'New User',
+        email: 'new@example.com',
+        password: 'hashed_password_new'
+      };
+      
+      const created = await storage.createUser(newUser);
+      
+      expect(created).toBeDefined();
+      expect(created.id).toBeDefined();
+      expect(created.username).toBe(newUser.username);
+      expect(created.email).toBe(newUser.email);
+      
+      // Verify user was actually added to the mock database
+      const retrieved = await storage.getUserByEmail('new@example.com');
+      expect(retrieved).toBeDefined();
+      expect(retrieved.username).toBe('newuser');
+    });
+    
     it('should update a user', async () => {
-      const userId = 1;
-      const updateData = { displayName: 'Updated Name' };
-      const updatedUser = { id: userId, username: 'testuser', email: 'test@example.com', displayName: 'Updated Name' };
+      const updateData = {
+        displayName: 'Updated User Name'
+      };
       
-      // Set up the mock to return an updated user
-      const mockReturning = jest.fn().mockResolvedValue([updatedUser]);
-      const mockWhere = jest.fn(() => ({ returning: mockReturning }));
-      const mockSet = jest.fn(() => ({ where: mockWhere }));
-      db.update.mockReturnValue({ set: mockSet });
+      const updated = await storage.updateUser(1, updateData);
       
-      const result = await storage.updateUser(userId, updateData);
+      expect(updated).toBeDefined();
+      expect(updated.id).toBe(1);
+      expect(updated.displayName).toBe(updateData.displayName);
       
-      expect(result).toEqual(updatedUser);
-      expect(db.update).toHaveBeenCalled();
-      expect(mockSet).toHaveBeenCalledWith(updateData);
-      expect(mockWhere).toHaveBeenCalled();
-      expect(mockReturning).toHaveBeenCalled();
+      // Original fields should remain unchanged
+      expect(updated.username).toBe('testuser');
+      expect(updated.email).toBe('test@example.com');
     });
   });
-
-  describe('Task Operations', () => {
-    it('should fetch a task by ID', async () => {
-      const mockTask = { id: 1, title: 'Test Task', userId: 1 };
+  
+  describe('Task operations', () => {
+    it('should get a task by ID', async () => {
+      const task = await storage.getTask(1);
       
-      // Set up the mock to return a task
-      const mockLimit = jest.fn().mockResolvedValue([mockTask]);
-      const mockWhere = jest.fn(() => ({ limit: mockLimit }));
-      const mockFrom = jest.fn(() => ({ where: mockWhere }));
-      db.select.mockReturnValue({ from: mockFrom });
-      
-      const result = await storage.getTask(1);
-      
-      expect(result).toEqual(mockTask);
-      expect(db.select).toHaveBeenCalled();
-      expect(mockFrom).toHaveBeenCalled();
-      expect(mockWhere).toHaveBeenCalled();
-      expect(mockLimit).toHaveBeenCalledWith(1);
+      expect(task).toBeDefined();
+      expect(task.id).toBe(1);
+      expect(task.title).toBe('Task 1');
     });
-
-    it('should fetch tasks by user ID', async () => {
-      const mockTasks = [
-        { id: 1, title: 'Task 1', userId: 1 },
-        { id: 2, title: 'Task 2', userId: 1 }
-      ];
+    
+    it('should return undefined for non-existent task ID', async () => {
+      const task = await storage.getTask(999);
       
-      // Set up the mock to return tasks
-      const mockWhere = jest.fn().mockResolvedValue(mockTasks);
-      const mockFrom = jest.fn(() => ({ where: mockWhere }));
-      db.select.mockReturnValue({ from: mockFrom });
-      
-      const result = await storage.getTasksByUserId(1);
-      
-      expect(result).toEqual(mockTasks);
-      expect(db.select).toHaveBeenCalled();
-      expect(mockFrom).toHaveBeenCalled();
-      expect(mockWhere).toHaveBeenCalled();
+      expect(task).toBeUndefined();
     });
-
-    it('should create a task', async () => {
-      const newTask = { 
-        title: 'New Task', 
-        description: 'Task description', 
-        priority: 'medium', 
-        dueDate: '2023-03-01', 
-        userId: 1 
-      };
-      const createdTask = { id: 3, ...newTask, completed: false };
+    
+    it('should get all tasks for a user', async () => {
+      const tasks = await storage.getTasksByUserId(1);
       
-      // Set up the mock to return a created task
-      const mockReturning = jest.fn().mockResolvedValue([createdTask]);
-      const mockValues = jest.fn(() => ({ returning: mockReturning }));
-      db.insert.mockReturnValue({ values: mockValues });
-      
-      const result = await storage.createTask(newTask);
-      
-      expect(result).toEqual(createdTask);
-      expect(db.insert).toHaveBeenCalled();
-      expect(mockValues).toHaveBeenCalledWith(newTask);
-      expect(mockReturning).toHaveBeenCalled();
+      expect(Array.isArray(tasks)).toBe(true);
+      expect(tasks.length).toBe(2);
+      expect(tasks[0].title).toBe('Task 1');
+      expect(tasks[1].title).toBe('Task 2');
     });
-
-    it('should update a task', async () => {
-      const taskId = 1;
-      const updateData = { 
-        title: 'Updated Task', 
-        priority: 'high' 
-      };
-      const updatedTask = { 
-        id: taskId, 
-        title: 'Updated Task', 
-        description: 'Task description', 
-        priority: 'high', 
-        dueDate: '2023-03-01', 
+    
+    it('should create a new task', async () => {
+      const newTask = {
+        title: 'New Task',
+        description: 'New Task Description',
         userId: 1,
-        completed: false
+        completed: false,
+        priority: 'low',
+        category: 'study',
+        dueDate: '2025-05-01T12:00:00.000Z'
       };
       
-      // Set up the mock to return an updated task
-      const mockReturning = jest.fn().mockResolvedValue([updatedTask]);
-      const mockWhere = jest.fn(() => ({ returning: mockReturning }));
-      const mockSet = jest.fn(() => ({ where: mockWhere }));
-      db.update.mockReturnValue({ set: mockSet });
+      const created = await storage.createTask(newTask);
       
-      const result = await storage.updateTask(taskId, updateData);
+      expect(created).toBeDefined();
+      expect(created.id).toBeDefined();
+      expect(created.title).toBe(newTask.title);
+      expect(created.userId).toBe(newTask.userId);
       
-      expect(result).toEqual(updatedTask);
-      expect(db.update).toHaveBeenCalled();
-      expect(mockSet).toHaveBeenCalledWith(updateData);
-      expect(mockWhere).toHaveBeenCalled();
-      expect(mockReturning).toHaveBeenCalled();
+      // Verify task was actually added to the mock database
+      const retrieved = await storage.getTask(created.id);
+      expect(retrieved).toBeDefined();
+      expect(retrieved.title).toBe('New Task');
     });
-
+    
+    it('should update a task', async () => {
+      const updateData = {
+        title: 'Updated Task Title',
+        description: 'Updated Description'
+      };
+      
+      const updated = await storage.updateTask(1, updateData);
+      
+      expect(updated).toBeDefined();
+      expect(updated.id).toBe(1);
+      expect(updated.title).toBe(updateData.title);
+      expect(updated.description).toBe(updateData.description);
+      
+      // Original fields should remain unchanged
+      expect(updated.userId).toBe(1);
+      expect(updated.priority).toBe('high');
+    });
+    
     it('should update task completion status', async () => {
-      const taskId = 1;
-      const completed = true;
-      const updatedTask = { 
-        id: taskId, 
-        title: 'Test Task', 
-        completed: true, 
-        userId: 1 
-      };
+      // Task 1 is initially not completed
+      const updated = await storage.updateTaskCompletion(1, true);
       
-      // Set up the mock to return an updated task
-      const mockReturning = jest.fn().mockResolvedValue([updatedTask]);
-      const mockWhere = jest.fn(() => ({ returning: mockReturning }));
-      const mockSet = jest.fn(() => ({ where: mockWhere }));
-      db.update.mockReturnValue({ set: mockSet });
+      expect(updated).toBeDefined();
+      expect(updated.id).toBe(1);
+      expect(updated.completed).toBe(true);
       
-      const result = await storage.updateTaskCompletion(taskId, completed);
-      
-      expect(result).toEqual(updatedTask);
-      expect(db.update).toHaveBeenCalled();
-      expect(mockSet).toHaveBeenCalledWith({ completed });
-      expect(mockWhere).toHaveBeenCalled();
-      expect(mockReturning).toHaveBeenCalled();
+      // Verify completion status persists
+      const retrieved = await storage.getTask(1);
+      expect(retrieved.completed).toBe(true);
     });
-
+    
     it('should delete a task', async () => {
-      const taskId = 1;
+      await storage.deleteTask(1);
       
-      // Set up the mock for delete operation
-      const mockReturning = jest.fn().mockResolvedValue([]);
-      const mockWhere = jest.fn(() => ({ returning: mockReturning }));
-      db.delete.mockReturnValue({ where: mockWhere });
+      // Verify task no longer exists
+      const deleted = await storage.getTask(1);
+      expect(deleted).toBeUndefined();
       
-      await storage.deleteTask(taskId);
-      
-      expect(db.delete).toHaveBeenCalled();
-      expect(mockWhere).toHaveBeenCalled();
+      // Verify other tasks still exist
+      const remaining = await storage.getTasksByUserId(1);
+      expect(remaining.length).toBe(1);
+      expect(remaining[0].id).toBe(2);
     });
   });
 });
