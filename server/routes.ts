@@ -22,8 +22,11 @@ const isProduction = process.env.NODE_ENV === "production";
 const SESSION_SECRET = process.env.SESSION_SECRET || "ai-dev-tasks-secret";
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const CALLBACK_URL = process.env.CALLBACK_URL || "http://localhost:5000/api/auth/google/callback";
-const DOMAIN = process.env.DOMAIN || "localhost";
+// For production, always use the correct callback URL for the deployed app
+const CALLBACK_URL = isProduction 
+  ? "https://todo.agentforce.io/api/auth/google/callback" 
+  : (process.env.CALLBACK_URL || "http://localhost:5000/api/auth/google/callback");
+const DOMAIN = isProduction ? "todo.agentforce.io" : (process.env.DOMAIN || "localhost");
 
 // Initialize storage
 const storage = new PostgresStorage();
@@ -52,7 +55,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       secure: isProduction, 
       maxAge: 86400000, // 1 day
       sameSite: isProduction ? 'none' : 'lax',
-      domain: isProduction ? DOMAIN : undefined
+      // Don't explicitly set domain in production as it can cause issues with top-level domains
+      // If a specific subdomain needs to be used, then domain can be set
     }
   };
   
