@@ -358,9 +358,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                       </SelectGroup>
                     </SelectContent>
                   </Select>
-                          setNewCategoryName("");
-                        }}
-                      >
                         Cancel
                       </Button>
                     </div>
