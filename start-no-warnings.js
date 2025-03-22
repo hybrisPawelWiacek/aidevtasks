@@ -1,15 +1,19 @@
-// Load the warning suppression code first
-require('./suppress-warnings.js');
+#!/usr/bin/env node
 
-// Then spawn the server process
-const { spawnSync } = require('child_process');
+// Set environment variable to suppress Node.js warnings
+process.env.NODE_NO_WARNINGS = '1';
 
-// Run the server using tsx
-console.log('Starting server with warnings suppressed...');
-const result = spawnSync('npx', ['tsx', 'server/index.ts'], {
-  stdio: 'inherit',
-  shell: true
+// Load external module with dynamic import
+import('tsx').then(tsx => {
+  // Execute the server with no warnings
+  console.log('Starting server with warnings suppressed...');
+  
+  // Import and run the server file
+  import('./server/index.ts').catch(err => {
+    console.error('Failed to start server:', err);
+    process.exit(1);
+  });
+}).catch(err => {
+  console.error('Failed to import tsx:', err);
+  process.exit(1);
 });
-
-// Handle exit code
-process.exit(result.status);

@@ -62,6 +62,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api", apiLimiter);
 
   // Configure session with PostgreSQL for production or memory for development
+  // Use safer values to avoid TimeoutOverflowWarning
+  const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+  
   let sessionConfig: session.SessionOptions = {
     secret: SESSION_SECRET,
     resave: true, // Ensure session is saved on each request
@@ -69,7 +72,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     name: 'todo_session', // Give our session cookie a specific name
     cookie: { 
       secure: isProduction, // Only use secure cookies in production
-      maxAge: 604800000, // 7 days in milliseconds (safer than multiplication)
+      maxAge: ONE_WEEK_MS, // 7 days
       sameSite: isProduction ? 'none' : 'lax', // Use 'none' in production for cross-site cookies
       httpOnly: true, // Cookie only accessible via HTTP(S), not JavaScript
       path: '/', // Always set the path for consistency
@@ -83,17 +86,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Create session table in the database if it doesn't exist
     await initializeSessionTable();
 
+    const ONE_DAY_MS = 24 * 60 * 60 * 1000; // 24 hours in ms
+    
     sessionConfig.store = new PgSessionStore({
       conString: process.env.DATABASE_URL,
       tableName: 'session',
       createTableIfMissing: true,
-      pruneSessionInterval: 86400000 // 24 hours in ms - prune once per day
+      pruneSessionInterval: ONE_DAY_MS // 24 hours - prune once per day
     });
   } else {
     // Use memory store for development
     const MemoryStoreSession = MemoryStore(session);
+    const ONE_DAY_MS = 24 * 60 * 60 * 1000; // 24 hours in ms
+    
     sessionConfig.store = new MemoryStoreSession({
-      checkPeriod: 86400000, // prune expired entries every 24h
+      checkPeriod: ONE_DAY_MS // prune expired entries every 24h
     });
   }
 
