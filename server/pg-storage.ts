@@ -27,7 +27,8 @@ export class PostgresStorage implements IStorage {
       displayName: insertUser.displayName || null,
       photoURL: insertUser.photoURL || null,
       googleId: insertUser.googleId || null,
-      password: null, // We're using OAuth so no password needed
+      password: insertUser.password || null, // For backward compatibility
+      password_hash: insertUser.password_hash || null, // Store hashed password for security
     }).returning();
     
     return user;
