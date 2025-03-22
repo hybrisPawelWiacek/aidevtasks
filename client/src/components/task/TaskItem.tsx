@@ -80,9 +80,13 @@ export const TaskItem: React.FC<TaskItemProps> = ({
               "px-2 py-0.5 rounded-full text-xs font-medium",
               task.completed ? "bg-gray-100 text-gray-600" : priorityClasses[task.priority as PriorityLevel] || priorityClasses.medium
             )}>
-              {task.priority === "high" && "High Priority"}
-              {task.priority === "medium" && "Medium Priority"}
-              {task.priority === "low" && "Low Priority"}
+              <span className={cn(
+                task.status === "Closed" && "line-through"
+              )}>
+                {task.priority === "high" && "High Priority"}
+                {task.priority === "medium" && "Medium Priority"}
+                {task.priority === "low" && "Low Priority"}
+              </span>
             </div>
           </div>
 
