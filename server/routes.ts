@@ -69,7 +69,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     name: 'todo_session', // Give our session cookie a specific name
     cookie: { 
       secure: isProduction, // Only use secure cookies in production
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days instead of 1 for better persistence
+      maxAge: 604800000, // 7 days in milliseconds (safer than multiplication)
       sameSite: isProduction ? 'none' : 'lax', // Use 'none' in production for cross-site cookies
       httpOnly: true, // Cookie only accessible via HTTP(S), not JavaScript
       path: '/', // Always set the path for consistency
@@ -87,7 +87,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       conString: process.env.DATABASE_URL,
       tableName: 'session',
       createTableIfMissing: true,
-      pruneSessionInterval: 24 * 60 * 60 * 1000 // Prune once per day
+      pruneSessionInterval: 86400000 // 24 hours in ms - prune once per day
     });
   } else {
     // Use memory store for development
