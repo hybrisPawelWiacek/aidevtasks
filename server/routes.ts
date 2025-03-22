@@ -62,15 +62,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api", apiLimiter);
 
   // Configure session with PostgreSQL for production or memory for development
+  // Determine if we're running on HTTPS on Replit
+  const isSecure = isProduction && process.env.REPLIT_URL?.startsWith('https');
+  console.log("Session configuration:", { 
+    isProduction, 
+    isSecure,
+    replitURL: process.env.REPLIT_URL || "Not set",
+  });
+  
   let sessionConfig: session.SessionOptions = {
     secret: SESSION_SECRET,
-    resave: true, // Ensure session is saved on each request
-    saveUninitialized: true, // Create session for all users
+    resave: false, // Only save session when session data is altered
+    saveUninitialized: false, // Only create session when something is stored
     name: 'todo_session', // Give our session cookie a specific name
     cookie: { 
-      secure: isProduction, // Only use secure cookies in production
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days instead of 1 for better persistence
-      sameSite: isProduction ? 'none' : 'lax', // Use 'none' in production for cross-site cookies
+      secure: isSecure, // Set to true only if we're on HTTPS
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days for better persistence
+      sameSite: isProduction ? (isSecure ? 'none' : 'lax') : 'lax', // Use 'none' only with HTTPS
       httpOnly: true, // Cookie only accessible via HTTP(S), not JavaScript
       path: '/', // Always set the path for consistency
     }
@@ -216,29 +224,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   }
 
-  // Auth middleware with improved debugging
+  // Auth middleware with enhanced debugging and error handling
   const requireAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    // Enhanced logging with more details
     console.log("Auth check:", { 
       hasUser: !!req.user, 
       hasSession: !!req.session,
       sessionID: req.sessionID,
-      cookies: req.headers.cookie,
+      cookies: req.headers.cookie ? "Present" : "Missing",
+      cookieLength: req.headers.cookie ? req.headers.cookie.length : 0,
       url: req.url,
       method: req.method,
-      isProduction
+      isProduction,
+      isSecure
     });
     
     if (!req.user) {
-      console.log("Unauthorized request:", {
+      // More detailed logging for debugging auth failures
+      const cookieHeader = req.headers.cookie || '';
+      const hasTodoSession = cookieHeader.includes('todo_session');
+      
+      console.log("Unauthorized request details:", {
         path: req.path,
         method: req.method,
         headers: {
-          cookie: req.headers.cookie ? "Present" : "Missing",
+          cookie: cookieHeader ? "Present" : "Missing",
+          cookieCount: cookieHeader ? cookieHeader.split(';').length : 0, 
+          hasTodoSession,
           origin: req.headers.origin,
           referer: req.headers.referer
+        },
+        sessionExists: !!req.session,
+        sessionID: req.sessionID || "None",
+      });
+      
+      return res.status(401).json({ 
+        message: "Authentication required", 
+        details: isProduction ? undefined : {
+          sessionExists: !!req.session,
+          hasCookies: !!req.headers.cookie,
+          hasTodoSession
         }
       });
-      return res.status(401).json({ message: "Unauthorized" });
     }
     next();
   };
@@ -711,16 +738,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create task
-  app.post("/api/tasks", requireAuth, async (req, res) => {
+  // Create task with enhanced error handling and cookie preservation
+  app.post("/api/tasks", async (req, res) => {
     try {
+      // Enhanced auth check with detailed logging
+      if (!req.user) {
+        const cookieHeader = req.headers.cookie || '';
+        const hasTodoSession = cookieHeader.includes('todo_session');
+        
+        console.log("Task creation - unauthorized request:", {
+          sessionExists: !!req.session,
+          sessionID: req.sessionID || "None",
+          cookieHeader: cookieHeader ? cookieHeader.substring(0, 100) + "..." : "Missing",
+          cookieCount: cookieHeader ? cookieHeader.split(';').length : 0,
+          hasTodoSession,
+          method: req.method,
+          url: req.url,
+          headers: {
+            origin: req.headers.origin,
+            referer: req.headers.referer
+          }
+        });
+        
+        return res.status(401).json({ 
+          message: "Authentication required to create tasks", 
+          details: isProduction ? undefined : {
+            sessionExists: !!req.session,
+            hasCookies: !!req.headers.cookie,
+            hasTodoSession
+          }
+        });
+      }
+      
+      // User is authenticated, proceed with task creation
       const userId = (req.user as any).id;
+      console.log("Creating task for user:", userId);
+      
       const taskData = { ...req.body, userId };
 
       // Validate task data
       const validatedData = taskValidationSchema.parse(taskData);
 
       const task = await storage.createTask(validatedData);
+      console.log("Task created successfully:", task.id);
       return res.status(201).json(task);
     } catch (error) {
       if (error instanceof ZodError) {
