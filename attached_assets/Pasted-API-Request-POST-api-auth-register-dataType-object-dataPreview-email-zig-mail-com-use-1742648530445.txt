@@ -1,0 +1,214 @@
+API Request: POST /api/auth/register {dataType: 'object', dataPreview: '{"email":"zig@mail.com","username":"ZIG","displayN…:"ZIG BIG","password":"pw1234pw","confirmPassw...'}
+index-D_-ffYEg.js:48 API Response: 201  for POST /api/auth/register
+index-D_-ffYEg.js:48 Query Request: /api/tasks
+index-D_-ffYEg.js:48 
+            
+            
+           GET https://todo.agenticforce.io/api/tasks 401 (Unauthorized)
+(anonymous) @ index-D_-ffYEg.js:48
+o @ index-D_-ffYEg.js:48
+w @ index-D_-ffYEg.js:48
+start @ index-D_-ffYEg.js:48
+fetch @ index-D_-ffYEg.js:48
+Hi @ index-D_-ffYEg.js:48
+onSubscribe @ index-D_-ffYEg.js:48
+subscribe @ index-D_-ffYEg.js:48
+(anonymous) @ index-D_-ffYEg.js:48
+Rb @ index-D_-ffYEg.js:38
+gc @ index-D_-ffYEg.js:40
+Oo @ index-D_-ffYEg.js:40
+Qg @ index-D_-ffYEg.js:40
+gs @ index-D_-ffYEg.js:38
+$M @ index-D_-ffYEg.js:40
+Ss @ index-D_-ffYEg.js:40
+l1 @ index-D_-ffYEg.js:40
+b @ index-D_-ffYEg.js:25
+I @ index-D_-ffYEg.js:25Understand this errorAI
+index-D_-ffYEg.js:48 Query Response: 401  for /api/tasks
+index-D_-ffYEg.js:48 Authentication failed for /api/tasks: 401 Unauthorized
+(anonymous) @ index-D_-ffYEg.js:48
+await in (anonymous)
+o @ index-D_-ffYEg.js:48
+w @ index-D_-ffYEg.js:48
+start @ index-D_-ffYEg.js:48
+fetch @ index-D_-ffYEg.js:48
+Hi @ index-D_-ffYEg.js:48
+onSubscribe @ index-D_-ffYEg.js:48
+subscribe @ index-D_-ffYEg.js:48
+(anonymous) @ index-D_-ffYEg.js:48
+Rb @ index-D_-ffYEg.js:38
+gc @ index-D_-ffYEg.js:40
+Oo @ index-D_-ffYEg.js:40
+Qg @ index-D_-ffYEg.js:40
+gs @ index-D_-ffYEg.js:38
+$M @ index-D_-ffYEg.js:40
+Ss @ index-D_-ffYEg.js:40
+l1 @ index-D_-ffYEg.js:40
+b @ index-D_-ffYEg.js:25
+I @ index-D_-ffYEg.js:25Understand this warningAI
+index-D_-ffYEg.js:48 API error response: {message: 'Unauthorized'}
+Q1 @ index-D_-ffYEg.js:48
+await in Q1
+(anonymous) @ index-D_-ffYEg.js:48
+await in (anonymous)
+o @ index-D_-ffYEg.js:48
+w @ index-D_-ffYEg.js:48
+start @ index-D_-ffYEg.js:48
+fetch @ index-D_-ffYEg.js:48
+Hi @ index-D_-ffYEg.js:48
+onSubscribe @ index-D_-ffYEg.js:48
+subscribe @ index-D_-ffYEg.js:48
+(anonymous) @ index-D_-ffYEg.js:48
+Rb @ index-D_-ffYEg.js:38
+gc @ index-D_-ffYEg.js:40
+Oo @ index-D_-ffYEg.js:40
+Qg @ index-D_-ffYEg.js:40
+gs @ index-D_-ffYEg.js:38
+$M @ index-D_-ffYEg.js:40
+Ss @ index-D_-ffYEg.js:40
+l1 @ index-D_-ffYEg.js:40
+b @ index-D_-ffYEg.js:25
+I @ index-D_-ffYEg.js:25Understand this errorAI
+index-D_-ffYEg.js:48 Query failed: /api/tasks TypeError: Failed to execute 'text' on 'Response': body stream already read
+    at Q1 (index-D_-ffYEg.js:48:42849)
+    at async index-D_-ffYEg.js:48:43961
+(anonymous) @ index-D_-ffYEg.js:48
+await in (anonymous)
+o @ index-D_-ffYEg.js:48
+w @ index-D_-ffYEg.js:48
+start @ index-D_-ffYEg.js:48
+fetch @ index-D_-ffYEg.js:48
+Hi @ index-D_-ffYEg.js:48
+onSubscribe @ index-D_-ffYEg.js:48
+subscribe @ index-D_-ffYEg.js:48
+(anonymous) @ index-D_-ffYEg.js:48
+Rb @ index-D_-ffYEg.js:38
+gc @ index-D_-ffYEg.js:40
+Oo @ index-D_-ffYEg.js:40
+Qg @ index-D_-ffYEg.js:40
+gs @ index-D_-ffYEg.js:38
+$M @ index-D_-ffYEg.js:40
+Ss @ index-D_-ffYEg.js:40
+l1 @ index-D_-ffYEg.js:40
+b @ index-D_-ffYEg.js:25
+I @ index-D_-ffYEg.js:25Understand this errorAI
+index-D_-ffYEg.js:217 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+(anonymous) @ index-D_-ffYEg.js:217
+gc @ index-D_-ffYEg.js:40
+Oo @ index-D_-ffYEg.js:40
+$M @ index-D_-ffYEg.js:40
+Ss @ index-D_-ffYEg.js:40
+Qg @ index-D_-ffYEg.js:40
+gs @ index-D_-ffYEg.js:38
+(anonymous) @ index-D_-ffYEg.js:40Understand this warningAI
+index-D_-ffYEg.js:173 
+            
+            
+           GET https://todo.agenticforce.io/api/auth/status 401 (Unauthorized)
+queryFn @ index-D_-ffYEg.js:173
+o @ index-D_-ffYEg.js:48
+w @ index-D_-ffYEg.js:48
+start @ index-D_-ffYEg.js:48
+fetch @ index-D_-ffYEg.js:48
+Hi @ index-D_-ffYEg.js:48
+fetch @ index-D_-ffYEg.js:48
+refetch @ index-D_-ffYEg.js:48
+(anonymous) @ index-D_-ffYEg.js:173
+setInterval
+(anonymous) @ index-D_-ffYEg.js:173
+gc @ index-D_-ffYEg.js:40
+Oo @ index-D_-ffYEg.js:40
+Qg @ index-D_-ffYEg.js:40
+gs @ index-D_-ffYEg.js:38
+$M @ index-D_-ffYEg.js:40
+Ss @ index-D_-ffYEg.js:40
+l1 @ index-D_-ffYEg.js:40
+b @ index-D_-ffYEg.js:25
+I @ index-D_-ffYEg.js:25Understand this errorAI
+index-D_-ffYEg.js:48 API Request: POST /api/tasks {dataType: 'object', dataPreview: '{"title":"Test","description":"","completed":false…iority":"medium","dueDate":"2025-03-22","categ...'}
+index-D_-ffYEg.js:48 
+            
+            
+           POST https://todo.agenticforce.io/api/tasks 401 (Unauthorized)
+Kr @ index-D_-ffYEg.js:48
+mutationFn @ index-D_-ffYEg.js:223
+fn @ index-D_-ffYEg.js:48
+w @ index-D_-ffYEg.js:48
+start @ index-D_-ffYEg.js:48
+execute @ index-D_-ffYEg.js:48
+await in execute
+mutate @ index-D_-ffYEg.js:48
+(anonymous) @ index-D_-ffYEg.js:48
+J @ index-D_-ffYEg.js:223
+i @ index-D_-ffYEg.js:217
+(anonymous) @ index-D_-ffYEg.js:173
+await in (anonymous)
+sD @ index-D_-ffYEg.js:37
+iD @ index-D_-ffYEg.js:37
+aD @ index-D_-ffYEg.js:37
+gg @ index-D_-ffYEg.js:37
+hb @ index-D_-ffYEg.js:37
+(anonymous) @ index-D_-ffYEg.js:37
+wh @ index-D_-ffYEg.js:40
+FS @ index-D_-ffYEg.js:37
+fd @ index-D_-ffYEg.js:37
+Gp @ index-D_-ffYEg.js:37
+_D @ index-D_-ffYEg.js:37Understand this errorAI
+index-D_-ffYEg.js:48 API Response: 401  for POST /api/tasks
+index-D_-ffYEg.js:48 API error response: {message: 'Unauthorized'}
+Q1 @ index-D_-ffYEg.js:48
+await in Q1
+Kr @ index-D_-ffYEg.js:48
+await in Kr
+mutationFn @ index-D_-ffYEg.js:223
+fn @ index-D_-ffYEg.js:48
+w @ index-D_-ffYEg.js:48
+start @ index-D_-ffYEg.js:48
+execute @ index-D_-ffYEg.js:48
+await in execute
+mutate @ index-D_-ffYEg.js:48
+(anonymous) @ index-D_-ffYEg.js:48
+J @ index-D_-ffYEg.js:223
+i @ index-D_-ffYEg.js:217
+(anonymous) @ index-D_-ffYEg.js:173
+await in (anonymous)
+sD @ index-D_-ffYEg.js:37
+iD @ index-D_-ffYEg.js:37
+aD @ index-D_-ffYEg.js:37
+gg @ index-D_-ffYEg.js:37
+hb @ index-D_-ffYEg.js:37
+(anonymous) @ index-D_-ffYEg.js:37
+wh @ index-D_-ffYEg.js:40
+FS @ index-D_-ffYEg.js:37
+fd @ index-D_-ffYEg.js:37
+Gp @ index-D_-ffYEg.js:37
+_D @ index-D_-ffYEg.js:37Understand this errorAI
+index-D_-ffYEg.js:48 API Request failed: POST /api/tasks TypeError: Failed to execute 'text' on 'Response': body stream already read
+    at Q1 (index-D_-ffYEg.js:48:42849)
+    at async Kr (index-D_-ffYEg.js:48:43462)
+    at async Object.mutationFn (index-D_-ffYEg.js:223:2807)
+Kr @ index-D_-ffYEg.js:48
+await in Kr
+mutationFn @ index-D_-ffYEg.js:223
+fn @ index-D_-ffYEg.js:48
+w @ index-D_-ffYEg.js:48
+start @ index-D_-ffYEg.js:48
+execute @ index-D_-ffYEg.js:48
+await in execute
+mutate @ index-D_-ffYEg.js:48
+(anonymous) @ index-D_-ffYEg.js:48
+J @ index-D_-ffYEg.js:223
+i @ index-D_-ffYEg.js:217
+(anonymous) @ index-D_-ffYEg.js:173
+await in (anonymous)
+sD @ index-D_-ffYEg.js:37
+iD @ index-D_-ffYEg.js:37
+aD @ index-D_-ffYEg.js:37
+gg @ index-D_-ffYEg.js:37
+hb @ index-D_-ffYEg.js:37
+(anonymous) @ index-D_-ffYEg.js:37
+wh @ index-D_-ffYEg.js:40
+FS @ index-D_-ffYEg.js:37
+fd @ index-D_-ffYEg.js:37
+Gp @ index-D_-ffYEg.js:37
+_D @ index-D_-ffYEg.js:37Understand this errorAI
