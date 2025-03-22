@@ -80,8 +80,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         secure: isProduction, 
         maxAge: 86400000, // 1 day
         sameSite: isProduction ? 'none' : 'lax',
-        domain: isProduction ? DOMAIN : undefined
-      }
+        // In production, don't set domain to allow the browser 
+        // to automatically set it to the current domain
+        domain: undefined
+      },
+      proxy: true // Trust the reverse proxy
     })
   );
 

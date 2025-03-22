@@ -40,12 +40,16 @@ export async function apiRequest(
         'Pragma': 'no-cache',
       },
       body: data ? JSON.stringify(data) : undefined,
-      credentials: "include",
-      // Always send cookies cross-domain
+      credentials: "include", // This is crucial for including cookies
       mode: 'cors',
     });
     
     console.log(`API Response: ${res.status} ${res.statusText} for ${method} ${url}`);
+    
+    // For debugging auth - clone the response before consuming it
+    if (res.status === 401) {
+      console.warn("Authentication failed, session may have expired or is invalid");
+    }
     
     await throwIfResNotOk(res);
     return res;
@@ -68,13 +72,12 @@ export const getQueryFn: <T>(options: {
     
     try {
       const res = await fetch(url, {
-        credentials: "include",
+        credentials: "include", // Always include credentials (cookies)
         headers: {
           // Add cache busting headers
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
         },
-        // Always send cookies cross-domain
         mode: 'cors',
       });
       
@@ -84,14 +87,30 @@ export const getQueryFn: <T>(options: {
       if (res.status === 401) {
         console.warn(`Authentication failed for ${url}: 401 Unauthorized`);
         
+        // Try to get more info about the auth failure
+        try {
+          const errorData = await res.clone().json();
+          console.error("Auth failure details:", errorData);
+        } catch (e) {
+          // Ignore errors from trying to read the response
+        }
+        
         if (unauthorizedBehavior === "returnNull") {
           return null;
         }
       }
       
       await throwIfResNotOk(res);
-      const data = await res.json();
-      return data;
+      
+      try {
+        const data = await res.json();
+        return data;
+      } catch (e) {
+        console.error("Failed to parse response as JSON:", e);
+        const text = await res.clone().text();
+        console.log("Response as text:", text.substring(0, 200));
+        throw new Error("Failed to parse response as JSON");
+      }
     } catch (error) {
       console.error(`Query failed: ${url}`, error);
       throw error;

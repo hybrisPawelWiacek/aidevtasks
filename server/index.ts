@@ -21,35 +21,46 @@ app.use((req, res, next) => {
   // Check if in production mode
   const isProduction = process.env.REPLIT_ENVIRONMENT === "production" || process.env.NODE_ENV === "production";
   
+  // Get origin from request headers
+  const requestOrigin = req.headers.origin;
+  
   if (isProduction) {
     console.log("Adding CORS headers for production environment");
-    const allowedOrigins = ['https://todo.agenticforce.io'];
-    const origin = req.headers.origin || 'https://todo.agenticforce.io';
     
-    // Production CORS headers
-    res.header('Access-Control-Allow-Origin', origin);
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Cookie, Set-Cookie');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Expose-Headers', 'Set-Cookie');
+    // Only set allowed origins if request has an origin header
+    if (requestOrigin) {
+      const allowedOrigins = ['https://todo.agenticforce.io', 'https://ai-developer-tracker-agenticforce-io.replit.app'];
+      
+      // Check if the request origin is allowed
+      if (allowedOrigins.includes(requestOrigin)) {
+        // Production CORS headers - specific to the requesting origin
+        res.header('Access-Control-Allow-Origin', requestOrigin);
+        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+        res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Cookie, Set-Cookie, Authorization');
+        res.header('Access-Control-Allow-Credentials', 'true');
+        res.header('Access-Control-Expose-Headers', 'Set-Cookie');
+      }
+    }
     
     // Log headers for debugging
     console.log("Production CORS headers set:", {
-      origin,
+      origin: requestOrigin,
       method: req.method,
       path: req.path,
       hasCredentials: !!req.headers.cookie
     });
   } else {
     // Development CORS headers - more permissive
-    const origin = req.headers.origin || '*';
-    res.header('Access-Control-Allow-Origin', origin);
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Cookie, Set-Cookie');
-    res.header('Access-Control-Allow-Credentials', 'true');
+    if (requestOrigin) {
+      res.header('Access-Control-Allow-Origin', requestOrigin);
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Cookie, Set-Cookie, Authorization');
+      res.header('Access-Control-Allow-Credentials', 'true');
+      res.header('Access-Control-Expose-Headers', 'Set-Cookie');
+    }
     
     console.log("Development CORS headers set:", {
-      origin,
+      origin: requestOrigin,
       method: req.method,
       path: req.path
     });
