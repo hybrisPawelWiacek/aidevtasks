@@ -1,31 +1,38 @@
 
 import React, { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Task, InsertTask } from "../../shared/schema";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Task } from "../../shared/schema";
+import { fetchTasks, completeTask, createTask, updateTask, deleteTask } from "@/lib/api";
 import { TaskList } from "@/components/task/TaskList";
-import { AddTaskButton } from "@/components/task/AddTaskButton";
 import { TaskModal } from "@/components/task/TaskModal";
+import { AddTaskButton } from "@/components/task/AddTaskButton";
 import { ConfirmDialog } from "@/components/task/ConfirmDialog";
-import { TaskFilters, FilterType } from "@/components/task/TaskFilters";
-import { TaskSort, SortOption } from "@/components/task/TaskSort";
-import { fetchTasks, createTask, updateTask, deleteTask, completeTask } from "@/lib/api";
+import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/hooks/use-toast";
 
-export function TasksPage() {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  
-  // State
+export default function TasksPage() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [activeFilter, setActiveFilter] = useState<FilterType>("all");
-  const [activeSortOption, setActiveSortOption] = useState<SortOption>("dueDate-asc");
+  const [taskToDelete, setTaskToDelete] = useState<number | null>(null);
+  const [filters, setFilters] = useState({
+    status: "all" as "all" | "active" | "completed",
+    priority: [] as string[],
+    category: [] as string[],
+    search: ""
+  });
+  const [sortOrder, setSortOrder] = useState({
+    field: "dueDate" as "dueDate" | "priority" | "title" | "createdAt",
+    direction: "asc" as "asc" | "desc"
+  });
 
-  // Tasks query
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  // Fetch tasks
   const { data: tasks = [] } = useQuery({
     queryKey: ["tasks"],
-    queryFn: fetchTasks,
+    queryFn: fetchTasks
   });
 
   // Mutations
@@ -90,59 +97,55 @@ export function TasksPage() {
   };
 
   const handleDeleteTask = (id: number) => {
-    const task = tasks.find(t => t.id === id);
-    if (task) {
-      setSelectedTask(task);
-      setIsDeleteModalOpen(true);
-    }
+    setTaskToDelete(id);
+    setIsDeleteModalOpen(true);
   };
 
-  const handleSaveTask = (data: InsertTask) => {
+  const handleSaveTask = (task: Task) => {
     if (selectedTask) {
-      updateMutation.mutate({ id: selectedTask.id, ...data });
+      updateMutation.mutate({ ...task, id: selectedTask.id });
     } else {
-      createMutation.mutate(data);
+      createMutation.mutate(task);
     }
   };
 
   const handleConfirmDelete = () => {
-    if (selectedTask) {
-      deleteMutation.mutate(selectedTask.id);
+    if (taskToDelete !== null) {
+      deleteMutation.mutate(taskToDelete);
     }
   };
 
   return (
-    <div className="container mx-auto py-6 px-4 max-w-4xl space-y-6">
-      <h1 className="text-3xl font-bold">Tasks</h1>
-      
-      <div className="flex flex-col sm:flex-row justify-between gap-4">
-        <TaskFilters activeFilter={activeFilter} onFilterChange={setActiveFilter} />
-        <TaskSort activeSortOption={activeSortOption} onSortChange={setActiveSortOption} />
-      </div>
-      
+    <div className="container max-w-md mx-auto px-4 pb-24">
       <TaskList
         tasks={tasks}
-        onEditTask={handleEditTask}
-        onDeleteTask={handleDeleteTask}
-        onCompleteTask={handleTaskComplete}
+        onComplete={handleTaskComplete}
+        onEdit={handleEditTask}
+        onDelete={handleDeleteTask}
+        filters={filters}
+        sortOrder={sortOrder}
       />
-      
+
       <AddTaskButton onClick={handleAddTask} />
-      
+
       <TaskModal
         isOpen={isTaskModalOpen}
         onClose={() => setIsTaskModalOpen(false)}
         onSave={handleSaveTask}
         task={selectedTask}
+        isLoading={createMutation.isPending || updateMutation.isPending}
       />
-      
+
       <ConfirmDialog
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleConfirmDelete}
         title="Delete Task"
-        description={`Are you sure you want to delete "${selectedTask?.title}"? This action cannot be undone.`}
+        description="Are you sure you want to delete this task? This action cannot be undone."
+        isLoading={deleteMutation.isPending}
       />
+
+      <Toaster />
     </div>
   );
 }
