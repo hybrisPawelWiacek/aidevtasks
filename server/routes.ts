@@ -113,11 +113,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Configure Google OAuth Strategy
   if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
+    console.log("Using Google OAuth with callback URL:", CALLBACK_URL);
     passport.use(new GoogleStrategy({
       clientID: GOOGLE_CLIENT_ID,
       clientSecret: GOOGLE_CLIENT_SECRET,
       callbackURL: CALLBACK_URL,
-      scope: ['profile', 'email']
+      scope: ['profile', 'email'],
+      // Add some options that might help with deployment
+      userProfileURL: 'https://www.googleapis.com/oauth2/v3/userinfo',
+      // Don't proxy requests to Google
+      proxy: false
     }, async (accessToken, refreshToken, profile, done) => {
       try {
         const email = profile.emails?.[0]?.value;
