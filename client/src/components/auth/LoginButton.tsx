@@ -17,9 +17,27 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
   // Verify the Google API connection
   const verifyGoogleAPI = async () => {
     try {
-      const response = await fetch('https://accounts.google.com/o/oauth2/v2/auth?client_id=640277032312-n2amkdnbpupkfsvjk7ref40gep4o2qdn.apps.googleusercontent.com&redirect_uri=https://todo.agentforce.io/api/auth/google/callback&response_type=code&scope=email%20profile&access_type=online&prompt=none&login_hint=skip');
+      // First, let's try to access Google's OAuth endpoint without parameters to check connectivity
+      const connectTest = await fetch('https://accounts.google.com/o/oauth2/v2/auth');
+      console.log("Basic Google connectivity test:", connectTest.status, connectTest.statusText);
+      
+      if (connectTest.status >= 400) {
+        console.error("Cannot connect to Google OAuth service at all - possible network issue");
+        return false;
+      }
+      
+      // Now let's test with our client ID to specifically check if it's valid
+      const response = await fetch('https://accounts.google.com/o/oauth2/v2/auth?client_id=640277032312-n2amkdnbpupkfsvjk7ref40gep4o2qdn.apps.googleusercontent.com&response_type=code&scope=email&access_type=none&redirect_uri=https://todo.agentforce.io&prompt=none&login_hint=skip');
       
       console.log("Google API verification response:", response.status, response.statusText);
+      
+      // For debugging, also log the URL to see if it matches what's in Google Cloud Console
+      console.log("Google OAuth configured URLs:", {
+        clientId: "640277032312-n2amkdnbpupkfsvjk7ref40gep4o2qdn.apps.googleusercontent.com",
+        redirectUri: "https://todo.agentforce.io/api/auth/google/callback",
+        jsOrigin: "https://todo.agentforce.io"
+      });
+      
       return response.status < 400; // Consider it a success if status code is less than 400
     } catch (error) {
       console.error("Google API verification failed:", error);

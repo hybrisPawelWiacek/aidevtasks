@@ -436,6 +436,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     return res.status(401).json({ message: "Not authenticated" });
   });
+  
+  // OAuth configuration check endpoint (for diagnostic purposes)
+  app.get("/api/auth/config-check", (req, res) => {
+    try {
+      // Retrieve configuration information
+      const envClientId = process.env.GOOGLE_CLIENT_ID;
+      const envClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+      const envCallbackUrl = process.env.CALLBACK_URL;
+      const envRedirectUri = process.env.REDIRECT_URI;
+      const envJsOrigin = process.env.JAVASCRIPT_ORIGIN;
+      const envDomain = process.env.DOMAIN;
+      
+      // Return sanitized configuration (no secrets)
+      return res.status(200).json({
+        oauth: {
+          clientIdExists: !!envClientId,
+          clientIdLength: envClientId ? envClientId.length : 0,
+          clientIdFirstChars: envClientId ? envClientId.substring(0, 8) + "..." : "N/A",
+          clientSecretExists: !!envClientSecret,
+          callbackUrl: envCallbackUrl || 'not set',
+          redirectUri: envRedirectUri || 'not set',
+          jsOrigin: envJsOrigin || 'not set',
+          domain: envDomain || 'not set',
+        },
+        environment: {
+          nodeEnv: process.env.NODE_ENV,
+          replitEnv: process.env.REPLIT_ENVIRONMENT,
+          isProduction,
+        },
+      });
+    } catch (error) {
+      console.error("Error in config check endpoint:", error);
+      return res.status(500).json({ error: "Failed to retrieve configuration" });
+    }
+  });
 
   // Logout
   app.post("/api/auth/logout", (req, res) => {
