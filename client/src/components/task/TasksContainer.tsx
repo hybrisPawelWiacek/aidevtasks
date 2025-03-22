@@ -301,7 +301,7 @@ export const TasksContainer: React.FC<TasksContainerProps> = ({ userId }) => {
     <>
       {/* Task Filters */}
       <div className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="container mx-auto px-4 py-3">
+        <div className="container mx-auto px-4 py-3 flex justify-center">
           <TaskFilters activeFilter={activeFilter} onFilterChange={handleFilterChange} />
         </div>
       </div>
