@@ -52,7 +52,7 @@ export function TaskContextMenu({
         
         <ContextMenuItem 
           onClick={() => onDelete(task.id)} 
-          className="flex items-center gap-2 text-destructive"
+          className="flex items-center gap-2 text-red-500"
         >
           <Trash2 className="w-4 h-4" />
           <span>Delete</span>
