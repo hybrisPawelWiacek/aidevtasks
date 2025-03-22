@@ -1,19 +1,19 @@
+
 import React from "react";
 import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 interface AddTaskButtonProps {
   onClick: () => void;
 }
 
-export const AddTaskButton: React.FC<AddTaskButtonProps> = ({ onClick }) => {
+export function AddTaskButton({ onClick }: AddTaskButtonProps) {
   return (
-    <Button 
-      className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center z-20 p-0"
+    <button
       onClick={onClick}
-      aria-label="Add task"
+      className="add-task-button"
+      aria-label="Add new task"
     >
-      <Plus className="h-6 w-6" />
-    </Button>
+      <Plus className="w-6 h-6" />
+    </button>
   );
-};
+}
