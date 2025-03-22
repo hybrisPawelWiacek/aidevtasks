@@ -141,17 +141,59 @@ export const TasksContainer: React.FC<TasksContainerProps> = ({ userId }) => {
     });
   }, [tasks, activeFilter]);
 
-  // Custom sort function
+  // Custom sort function with multiple sorting criteria
   const sortTasksByPriorityAndStatus = (a: Task, b: Task) => {
     const priorityOrder = { high: 3, medium: 2, low: 1 };
     const priorityA = priorityOrder[a.priority] || 0;
     const priorityB = priorityOrder[b.priority] || 0;
 
+    // First level: Completed status
     if (a.completed !== b.completed) {
       return a.completed ? 1 : -1; // Completed tasks come after open tasks
-    } else {
+    }
+    
+    // Second level: Priority
+    if (priorityA !== priorityB) {
       return priorityB - priorityA; // High priority tasks come first
     }
+    
+    // Third level: Due date (more recent due date higher)
+    const dateA = a.dueDate ? new Date(a.dueDate).getTime() : 0;
+    const dateB = b.dueDate ? new Date(b.dueDate).getTime() : 0;
+    
+    if (dateA !== dateB) {
+      // For same priority, more recent due date comes first
+      // If one has no due date, it comes last
+      if (dateA === 0) return 1;
+      if (dateB === 0) return -1;
+      return dateB - dateA;
+    }
+    
+    // Fourth level: Content completeness
+    const countFilledProperties = (task: Task) => {
+      let count = 0;
+      // Count non-empty properties that represent content
+      if (task.title && task.title.trim() !== '') count++;
+      if (task.description && task.description.trim() !== '') count++;
+      if (task.dueDate) count++;
+      if (task.category && task.category.trim() !== '') count++;
+      if (task.labels && task.labels.length > 0) count++;
+      // Add more properties here as they're added to the model
+      return count;
+    };
+    
+    const contentCountA = countFilledProperties(a);
+    const contentCountB = countFilledProperties(b);
+    
+    if (contentCountA !== contentCountB) {
+      return contentCountB - contentCountA; // More filled properties come first
+    }
+    
+    // Fifth level: Creation timestamp
+    const createdAtA = new Date(a.createdAt || 0).getTime();
+    const createdAtB = new Date(b.createdAt || 0).getTime();
+    
+    return createdAtB - createdAtA; // More recent creation comes first
   };
 
 
