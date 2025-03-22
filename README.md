@@ -2,6 +2,8 @@
 
 A modern, AI-enhanced todo application designed for developers, featuring advanced task management capabilities with intelligent suggestions and seamless user experience.
 
+[![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/hybrisPawelWiacek/aidevtasks)
+
 ## Technology Stack
 
 - **Frontend**: React with TypeScript, Vite build system
