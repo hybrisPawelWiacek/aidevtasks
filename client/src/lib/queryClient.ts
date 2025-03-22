@@ -2,9 +2,12 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
+    // Clone the response before reading it
+    const clonedRes = res.clone();
+    
     try {
       // Try to parse the response as JSON first
-      const data = await res.json();
+      const data = await clonedRes.json();
       console.error("API error response:", data);
       
       // Use the message from the JSON response if available
@@ -12,9 +15,14 @@ async function throwIfResNotOk(res: Response) {
       throw new Error(`${res.status}: ${errorMessage}`);
     } catch (e) {
       // If it's not JSON, fall back to text
-      const text = await res.text();
-      console.error("API error (non-JSON):", { status: res.status, text });
-      throw new Error(`${res.status}: ${text || res.statusText}`);
+      try {
+        const text = await res.text();
+        console.error("API error (non-JSON):", { status: res.status, text });
+        throw new Error(`${res.status}: ${text || res.statusText}`);
+      } catch (textError) {
+        // If we couldn't even read text, just throw the status
+        throw new Error(`${res.status}: ${res.statusText}`);
+      }
     }
   }
 }
@@ -56,7 +64,9 @@ export async function apiRequest<T = any>(
       console.warn("Authentication failed, session may have expired or is invalid");
     }
     
-    await throwIfResNotOk(res);
+    // Clone the response before checking it
+    const resForCheck = res.clone();
+    await throwIfResNotOk(resForCheck);
     
     // Parse JSON response
     try {
@@ -64,8 +74,12 @@ export async function apiRequest<T = any>(
       return result as T;
     } catch (e) {
       console.error("Failed to parse response as JSON:", e);
-      const text = await res.clone().text();
-      console.log("Response as text:", text.substring(0, 200));
+      try {
+        const text = await res.clone().text();
+        console.log("Response as text:", text.substring(0, 200));
+      } catch (textError) {
+        console.error("Could not read response as text either:", textError);
+      }
       throw new Error("Failed to parse response as JSON");
     }
   } catch (error) {
@@ -115,15 +129,21 @@ export const getQueryFn: <T>(options: {
         }
       }
       
-      await throwIfResNotOk(res);
+      // Clone the response before checking it
+      const resForCheck = res.clone();
+      await throwIfResNotOk(resForCheck);
       
       try {
         const data = await res.json();
         return data;
       } catch (e) {
         console.error("Failed to parse response as JSON:", e);
-        const text = await res.clone().text();
-        console.log("Response as text:", text.substring(0, 200));
+        try {
+          const text = await res.clone().text();
+          console.log("Response as text:", text.substring(0, 200));
+        } catch (textError) {
+          console.error("Could not read response as text either:", textError);
+        }
         throw new Error("Failed to parse response as JSON");
       }
     } catch (error) {
