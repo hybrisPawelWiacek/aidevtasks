@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -26,11 +26,26 @@ export const tasks = pgTable("tasks", {
   userId: integer("user_id").notNull(),
 });
 
+export const userCategories = pgTable("user_categories", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  userId: integer("user_id").notNull(),
+}, (table) => {
+  return {
+    // Ensure each user can only have unique category names
+    uniqueUserCategory: unique().on(table.name, table.userId)
+  };
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
 });
 
 export const insertTaskSchema = createInsertSchema(tasks).omit({
+  id: true,
+});
+
+export const insertUserCategorySchema = createInsertSchema(userCategories).omit({
   id: true,
 });
 
@@ -62,3 +77,5 @@ export type LoginUser = z.infer<typeof loginUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type Task = typeof tasks.$inferSelect;
+export type InsertUserCategory = z.infer<typeof insertUserCategorySchema>;
+export type UserCategory = typeof userCategories.$inferSelect;

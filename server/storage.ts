@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Task, type InsertTask } from "@shared/schema";
+import { type User, type InsertUser, type Task, type InsertTask, type UserCategory, type InsertUserCategory } from "@shared/schema";
 import { PostgresStorage } from './pg-storage';
 
 export interface IStorage {
@@ -13,6 +13,9 @@ export interface IStorage {
   updateTask(id: number, task: InsertTask): Promise<Task>;
   updateTaskCompletion(id: number, completed: boolean): Promise<Task>;
   deleteTask(id: number): Promise<void>;
+  getUserCategories(userId: number): Promise<UserCategory[]>;
+  createUserCategory(category: InsertUserCategory): Promise<UserCategory>;
+  deleteUserCategory(id: number): Promise<void>;
 }
 
 // Use PostgreSQL storage

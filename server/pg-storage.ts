@@ -1,6 +1,6 @@
 import { db } from './db';
 import { IStorage } from './storage';
-import { Task, User, InsertTask, InsertUser, tasks, users } from '@shared/schema';
+import { Task, User, InsertTask, InsertUser, tasks, users, userCategories, UserCategory, InsertUserCategory } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 
 export class PostgresStorage implements IStorage {
@@ -126,6 +126,35 @@ export class PostgresStorage implements IStorage {
     
     if (result.length === 0) {
       throw new Error(`Task with id ${id} not found`);
+    }
+  }
+  
+  async getUserCategories(userId: number): Promise<UserCategory[]> {
+    return await db.select().from(userCategories).where(eq(userCategories.userId, userId));
+  }
+  
+  async createUserCategory(category: InsertUserCategory): Promise<UserCategory> {
+    try {
+      const [newCategory] = await db.insert(userCategories).values({
+        name: category.name,
+        userId: category.userId,
+      }).returning();
+      
+      return newCategory;
+    } catch (error) {
+      // Catch duplicate category error and provide user-friendly message
+      if ((error as any)?.code === '23505') { // PostgreSQL unique constraint violation
+        throw new Error(`Category '${category.name}' already exists for this user`);
+      }
+      throw error;
+    }
+  }
+  
+  async deleteUserCategory(id: number): Promise<void> {
+    const result = await db.delete(userCategories).where(eq(userCategories.id, id)).returning({ id: userCategories.id });
+    
+    if (result.length === 0) {
+      throw new Error(`Category with id ${id} not found`);
     }
   }
 }

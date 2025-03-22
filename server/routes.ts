@@ -503,6 +503,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: "Server error updating task completion" });
     }
   });
+  
+  // Get user categories
+  app.get("/api/categories", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const categories = await storage.getUserCategories(userId);
+      return res.status(200).json(categories);
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      return res.status(500).json({ message: "Server error fetching categories" });
+    }
+  });
+  
+  // Create user category
+  app.post("/api/categories", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const { name } = req.body;
+      
+      if (!name || typeof name !== 'string' || name.trim() === '') {
+        return res.status(400).json({ message: "Category name is required" });
+      }
+      
+      const category = await storage.createUserCategory({
+        name: name.trim(),
+        userId
+      });
+      
+      return res.status(201).json(category);
+    } catch (error) {
+      if ((error as Error).message.includes('already exists')) {
+        return res.status(400).json({ message: (error as Error).message });
+      }
+      
+      console.error("Error creating category:", error);
+      return res.status(500).json({ message: "Server error creating category" });
+    }
+  });
+  
+  // Delete user category
+  app.delete("/api/categories/:id", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const categoryId = parseInt(req.params.id);
+      
+      // Get the category to check ownership
+      const categories = await storage.getUserCategories(userId);
+      const categoryExists = categories.some(cat => cat.id === categoryId);
+      
+      if (!categoryExists) {
+        return res.status(404).json({ message: "Category not found or not owned by user" });
+      }
+      
+      await storage.deleteUserCategory(categoryId);
+      return res.status(200).json({ message: "Category deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting category:", error);
+      return res.status(500).json({ message: "Server error deleting category" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

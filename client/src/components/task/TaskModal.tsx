@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { 
@@ -25,11 +25,17 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectGroup,
+  SelectLabel
 } from "@/components/ui/select";
-import { InsertTask, Task, taskValidationSchema } from "@shared/schema";
+import { InsertTask, Task, UserCategory, taskValidationSchema } from "@shared/schema";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { X } from "lucide-react";
+import { Plus, X } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { CATEGORY_OPTIONS } from "@/lib/constants";
 
 interface TaskModalProps {
   isOpen: boolean;
@@ -38,14 +44,11 @@ interface TaskModalProps {
   onClose: () => void;
 }
 
-const CATEGORY_OPTIONS = [
-  { label: "ML Fundamentals", value: "ML Fundamentals" },
-  { label: "Programming", value: "Programming" },
-  { label: "NLP", value: "NLP" },
-  { label: "Computer Vision", value: "Computer Vision" },
-  { label: "Infrastructure", value: "Infrastructure" },
-  { label: "Projects", value: "Projects" },
-];
+// Convert global categories to the right format
+const GLOBAL_CATEGORY_OPTIONS = CATEGORY_OPTIONS.map(category => ({
+  label: category,
+  value: category
+}));
 
 export const TaskModal: React.FC<TaskModalProps> = ({
   isOpen,
@@ -54,6 +57,52 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   onClose,
 }) => {
   const isEditing = !!task;
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  
+  // Fetch user-specific categories
+  const { data: userCategories = [], isLoading: isLoadingCategories } = useQuery<UserCategory[]>({
+    queryKey: ["/api/categories"],
+    enabled: isOpen, // Only fetch when modal is open
+  });
+  
+  // Create a category mutation
+  const createCategoryMutation = useMutation({
+    mutationFn: async (name: string) => {
+      return await apiRequest('/api/categories', {
+        method: 'POST',
+        body: { name }
+      });
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Category created",
+        description: `Category "${data.name}" has been created.`,
+      });
+      // Update the categories list
+      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+      // Set the form to use the new category
+      form.setValue("category", data.name);
+      // Reset UI
+      setNewCategoryName("");
+      setIsAddingCategory(false);
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Failed to create category",
+        description: error.message || "Something went wrong",
+      });
+    }
+  });
+  
+  // Combine global and user categories
+  const allCategories = [
+    ...GLOBAL_CATEGORY_OPTIONS,
+    ...userCategories.map(cat => ({ label: cat.name, value: cat.name }))
+  ];
   
   const form = useForm<InsertTask>({
     resolver: zodResolver(taskValidationSchema),
