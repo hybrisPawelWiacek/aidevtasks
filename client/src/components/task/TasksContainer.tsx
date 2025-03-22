@@ -26,6 +26,8 @@ export const TasksContainer: React.FC<TasksContainerProps> = ({ userId }) => {
   const [editingTask, setEditingTask] = useState<Task | undefined>(undefined);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<number | null>(null);
+  const [activeTasksOpen, setActiveTasksOpen] = useState(true);
+  const [completedTasksOpen, setCompletedTasksOpen] = useState(true);
 
   // Fetch tasks
   const { data: tasks = [], isLoading } = useQuery<Task[]>({
@@ -326,8 +328,32 @@ export const TasksContainer: React.FC<TasksContainerProps> = ({ userId }) => {
               {/* Active Tasks Section */}
               {activeTasks.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-3 uppercase tracking-wider">Active Tasks</h3>
-                  <div className="space-y-3">
+                  <h3 
+                    className="text-sm font-medium text-gray-500 mb-3 uppercase tracking-wider cursor-pointer flex items-center gap-2"
+                    onClick={() => setActiveTasksOpen(!activeTasksOpen)}
+                  >
+                    <svg 
+                      className={`h-4 w-4 transition-transform duration-300 ${activeTasksOpen ? 'rotate-0' : '-rotate-90'}`}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                    Active Tasks
+                  </h3>
+                  <div 
+                    className={`space-y-3 transition-all duration-300 overflow-hidden ${
+                      activeTasksOpen ? 'max-h-[5000px] opacity-100' : 'max-h-[70px] opacity-80'
+                    }`}
+                    style={{
+                      maskImage: !activeTasksOpen ? 'linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0))' : 'none',
+                      WebkitMaskImage: !activeTasksOpen ? 'linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0))' : 'none',
+                    }}
+                  >
                     {activeTasks.map((task) => (
                       <TaskItem
                         key={task.id}
@@ -343,9 +369,33 @@ export const TasksContainer: React.FC<TasksContainerProps> = ({ userId }) => {
 
               {/* Completed Tasks Section */}
               {completedTasks.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-3 uppercase tracking-wider">Completed Tasks</h3>
-                  <div className="space-y-3 opacity-80">
+                <div className="mt-6">
+                  <h3 
+                    className="text-sm font-medium text-gray-500 mb-3 uppercase tracking-wider cursor-pointer flex items-center gap-2"
+                    onClick={() => setCompletedTasksOpen(!completedTasksOpen)}
+                  >
+                    <svg 
+                      className={`h-4 w-4 transition-transform duration-300 ${completedTasksOpen ? 'rotate-0' : '-rotate-90'}`}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                    Completed Tasks
+                  </h3>
+                  <div 
+                    className={`space-y-3 opacity-80 transition-all duration-300 overflow-hidden ${
+                      completedTasksOpen ? 'max-h-[5000px] opacity-80' : 'max-h-[70px] opacity-60'
+                    }`}
+                    style={{
+                      maskImage: !completedTasksOpen ? 'linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0))' : 'none',
+                      WebkitMaskImage: !completedTasksOpen ? 'linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0))' : 'none',
+                    }}
+                  >
                     {completedTasks.map((task) => (
                       <TaskItem
                         key={task.id}
