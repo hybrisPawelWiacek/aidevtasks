@@ -24,6 +24,14 @@ export function TaskContextMenu({
   onDelete, 
   onComplete 
 }: TaskContextMenuProps) {
+  const handleComplete = () => {
+    if (typeof onComplete === 'function') {
+      onComplete(task.id, !task.completed);
+    } else {
+      console.error("onComplete is not a function", onComplete);
+    }
+  };
+
   return (
     <ContextMenu>
       <ContextMenuTrigger>{children}</ContextMenuTrigger>
@@ -34,7 +42,7 @@ export function TaskContextMenu({
         </ContextMenuItem>
         
         <ContextMenuItem 
-          onClick={() => onComplete(task.id, !task.completed)} 
+          onClick={handleComplete} 
           className="flex items-center gap-2"
         >
           {task.completed ? (
