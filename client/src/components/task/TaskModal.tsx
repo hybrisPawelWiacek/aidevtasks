@@ -290,24 +290,25 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                       {/* Option to add new category */}
                       <SelectGroup>
                         <SelectLabel>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="w-full flex items-center justify-start mt-1 px-2 text-blue-600 hover:text-blue-800"
+                          <div 
+                            className="w-full flex items-center justify-start mt-1 px-2 text-blue-600 hover:text-blue-800 cursor-pointer"
                             onClick={(e) => {
                               e.preventDefault();
-                              setIsAddingCategory(true);
+                              e.stopPropagation();
                               // Close the dropdown when adding a new category
                               const selectTrigger = document.querySelector('[data-state="open"]');
                               if (selectTrigger) {
                                 (selectTrigger as HTMLElement).click();
                               }
+                              // Set a short timeout to ensure the dropdown is closed before showing the form
+                              setTimeout(() => {
+                                setIsAddingCategory(true);
+                              }, 100);
                             }}
                           >
                             <Plus className="mr-2 h-4 w-4" />
                             Add new category
-                          </Button>
+                          </div>
                         </SelectLabel>
                       </SelectGroup>
                     </SelectContent>
