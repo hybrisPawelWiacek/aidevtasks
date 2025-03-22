@@ -103,18 +103,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Email login mutation
   const { mutateAsync: emailLoginMutation, isPending: isEmailLoggingIn } = useMutation({
     mutationFn: async ({ email, password }: { email: string; password: string }) => {
-      const response = await apiRequest("POST", "/api/auth/login", { 
-        email, 
-        password 
-      });
-      
-      if (!response.ok) {
-        // Parse the error message from the response
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Login failed");
+      try {
+        console.log("API Request: POST /api/auth/login", { 
+          dataType: "object",
+          dataPreview: JSON.stringify({ email, password })
+        });
+        
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email, password }),
+          credentials: "include",
+        });
+        
+        console.log(`API Response: ${response.status} ${response.statusText} for POST /api/auth/login`);
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Login failed");
+        }
+        
+        const data = await response.json();
+        if (!data || !data.user) {
+          throw new Error("Invalid response format from server");
+        }
+        
+        return data.user;
+      } catch (error) {
+        console.error("Login error:", error);
+        throw error;
       }
-      
-      return response.json();
     },
     onSuccess: (data) => {
       setUser(data);
@@ -126,7 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     onError: (error) => {
       toast({
         title: "Login failed",
-        description: error instanceof Error ? error.message : "Please try again later",
+        description: error instanceof Error ? error.message : "The string did not match the expected pattern.",
         variant: "destructive",
       });
     },
@@ -135,15 +155,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Registration mutation
   const { mutateAsync: registerMutation, isPending: isRegistering } = useMutation({
     mutationFn: async (userData: { email: string; username: string; displayName: string; password: string; confirmPassword: string }) => {
-      const response = await apiRequest("POST", "/api/auth/register", userData);
-      
-      if (!response.ok) {
-        // Parse the error message from the response
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Registration failed");
+      try {
+        console.log("API Request: POST /api/auth/register", { 
+          dataType: "object",
+          dataPreview: JSON.stringify(userData)
+        });
+        
+        const response = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(userData),
+          credentials: "include",
+        });
+        
+        console.log(`API Response: ${response.status} ${response.statusText} for POST /api/auth/register`);
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Registration failed");
+        }
+        
+        const data = await response.json();
+        if (!data || !data.user) {
+          throw new Error("Invalid response format from server");
+        }
+        
+        return data.user;
+      } catch (error) {
+        console.error("Registration error:", error);
+        throw error;
       }
-      
-      return response.json();
     },
     onSuccess: (data) => {
       setUser(data);
@@ -155,7 +198,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     onError: (error) => {
       toast({
         title: "Registration failed",
-        description: error instanceof Error ? error.message : "Please try again later",
+        description: error instanceof Error ? error.message : "The string did not match the expected pattern.",
         variant: "destructive",
       });
     },

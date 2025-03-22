@@ -215,6 +215,129 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.status(401).json({ message: "Not authenticated" });
   });
 
+  // Local auth strategy
+  passport.use(new LocalStrategy(
+    { usernameField: 'email' },
+    async (email, password, done) => {
+      try {
+        // Find user by email
+        const user = await storage.getUserByEmail(email);
+        
+        if (!user) {
+          return done(null, false, { message: "Invalid email or password" });
+        }
+        
+        // User exists, check password
+        if (!user.passwordHash) {
+          return done(null, false, { message: "This account doesn't have a password set" });
+        }
+        
+        // Compare passwords
+        const isMatch = await bcrypt.compare(password, user.passwordHash);
+        
+        if (!isMatch) {
+          return done(null, false, { message: "Invalid email or password" });
+        }
+        
+        return done(null, user);
+      } catch (error) {
+        console.error("Error in local strategy:", error);
+        return done(error as Error);
+      }
+    }
+  ));
+  
+  // Email/password login route
+  app.post("/api/auth/login", (req, res, next) => {
+    try {
+      // Validate login data
+      const loginData = loginUserSchema.parse(req.body);
+      
+      passport.authenticate('local', (err: Error, user: any, info: any) => {
+        if (err) {
+          console.error("Login error:", err);
+          return res.status(500).json({ message: "Server error during login" });
+        }
+        
+        if (!user) {
+          return res.status(401).json({ message: info?.message || "Invalid email or password" });
+        }
+        
+        req.login(user, (loginErr) => {
+          if (loginErr) {
+            console.error("Login error:", loginErr);
+            return res.status(500).json({ message: "Error during login" });
+          }
+          
+          return res.status(200).json({ user });
+        });
+      })(req, res, next);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.message });
+      }
+      console.error("Login error:", error);
+      return res.status(500).json({ message: "Server error during login" });
+    }
+  });
+  
+  // User registration route
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      // Validate registration data
+      const registerData = registerUserSchema.parse(req.body);
+      
+      // Check if passwords match
+      if (registerData.password !== registerData.confirmPassword) {
+        return res.status(400).json({ message: "Passwords do not match" });
+      }
+      
+      // Check if email already exists
+      const existingUser = await storage.getUserByEmail(registerData.email);
+      if (existingUser) {
+        return res.status(400).json({ message: "Email already in use" });
+      }
+      
+      // Check if username already exists
+      const existingUsername = await storage.getUserByUsername(registerData.username);
+      if (existingUsername) {
+        return res.status(400).json({ message: "Username already taken" });
+      }
+      
+      // Hash password
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(registerData.password, salt);
+      
+      // Create user
+      const user = await storage.createUser({
+        email: registerData.email,
+        username: registerData.username,
+        displayName: registerData.displayName,
+        passwordHash
+      });
+      
+      // Create demo tasks for new user
+      await createDemoTasks(user.id);
+      
+      // Log user in
+      req.login(user, (err) => {
+        if (err) {
+          console.error("Login after registration error:", err);
+          return res.status(500).json({ message: "Error logging in after registration" });
+        }
+        return res.status(200).json({ user });
+      });
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.message });
+      }
+      console.error("Registration error:", error);
+      return res.status(500).json({ message: "Server error during registration" });
+    }
+  });
+  
   // Logout
   app.post("/api/auth/logout", (req, res) => {
     req.logout((err) => {
