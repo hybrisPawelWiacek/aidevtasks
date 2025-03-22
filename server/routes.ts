@@ -70,21 +70,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     sessionStore = new MemoryStore();
   }
   
+  // Configure cookie settings based on environment
+  // Note: TypeScript needs explicit literal values for sameSite
+  const cookieSettings = {
+    secure: isProduction, // Only use secure cookies in production
+    maxAge: 86400000, // 1 day in milliseconds
+    sameSite: isProduction ? ('none' as const) : ('lax' as const), // Required for cross-site cookies
+    // Leave domain undefined to let browser set it automatically to current domain
+    domain: undefined,
+    // Set HttpOnly to true to prevent JS access to the cookie
+    httpOnly: true
+  };
+
+  console.log(`Session cookie configuration: ${JSON.stringify({
+    isProduction,
+    secure: cookieSettings.secure,
+    sameSite: cookieSettings.sameSite,
+    domain: DOMAIN || 'undefined'
+  })}`);
+
   app.use(
     session({
       store: sessionStore,
       secret: SESSION_SECRET,
       resave: false,
       saveUninitialized: false,
-      cookie: { 
-        secure: isProduction, 
-        maxAge: 86400000, // 1 day
-        sameSite: isProduction ? 'none' : 'lax',
-        // In production, don't set domain to allow the browser 
-        // to automatically set it to the current domain
-        domain: undefined
-      },
-      proxy: true // Trust the reverse proxy
+      cookie: cookieSettings,
+      proxy: true // Trust the reverse proxy for secure cookies behind load balancers
     })
   );
 

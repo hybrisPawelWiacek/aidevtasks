@@ -39,11 +39,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     queryKey: ["/api/auth/status"],
     queryFn: async () => {
       try {
+        console.log("Checking authentication status...");
         const response = await fetch("/api/auth/status", {
-          credentials: "include",
+          credentials: "include", // Critical for cross-domain cookies
+          headers: {
+            // Add cache busting headers
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+          },
+          mode: 'cors'
         });
         
         if (response.status === 401) {
+          console.log("Not authenticated: 401 Unauthorized");
           return null;
         }
         
@@ -51,7 +59,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           throw new Error(`Auth status check failed: ${response.statusText}`);
         }
         
-        return await response.json();
+        // Successfully authenticated
+        const data = await response.json();
+        console.log("Auth status check success, user data:", data.user ? "User present" : "No user data");
+        return data;
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         console.error("Auth status check error:", errorMessage);
