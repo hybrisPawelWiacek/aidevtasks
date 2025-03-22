@@ -64,7 +64,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Configure session with PostgreSQL for production or memory for development
   // Use safer values to avoid TimeoutOverflowWarning
   const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
-  
+
   let sessionConfig: session.SessionOptions = {
     secret: SESSION_SECRET,
     resave: true, // Ensure session is saved on each request
@@ -88,7 +88,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     await initializeSessionTable();
 
     const ONE_DAY_MS = 24 * 60 * 60 * 1000; // 24 hours in ms
-    
+
     sessionConfig.store = new PgSessionStore({
       conString: process.env.DATABASE_URL,
       tableName: 'session',
@@ -99,7 +99,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Use memory store for development
     const MemoryStoreSession = MemoryStore(session);
     const ONE_DAY_MS = 24 * 60 * 60 * 1000; // 24 hours in ms
-    
+
     sessionConfig.store = new MemoryStoreSession({
       checkPeriod: ONE_DAY_MS // prune expired entries every 24h
     });
@@ -235,7 +235,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       method: req.method,
       isProduction
     });
-    
+
     if (!req.user) {
       console.log("Unauthorized request:", {
         path: req.path,
@@ -628,38 +628,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Auth status check with improved diagnostics
-  app.get("/api/auth/status", (req, res) => {
-    console.log("Auth status check:", { 
-      hasUser: !!req.user, 
-      hasSession: !!req.session,
-      sessionID: req.sessionID,
-      headers: {
-        cookie: req.headers.cookie ? "Present" : "Missing",
-        origin: req.headers.origin,
-        referer: req.headers.referer,
-        host: req.headers.host
-      },
-      isProduction
-    });
-    
-    if (req.user) {
-      return res.status(200).json({ user: req.user });
+app.get("/api/auth/status", (req, res) => {
+  // Parse cookies for debugging
+  const cookies = req.headers.cookie || '';
+  const parsedCookies = cookies.split(';').reduce((obj, cookie) => {
+    const parts = cookie.split('=');
+    if (parts.length >= 2) {
+      const key = parts[0].trim();
+      obj[key] = parts.slice(1).join('=').trim();
     }
-    
-    // Return more detailed error info in development
-    if (!isProduction) {
-      return res.status(401).json({ 
-        message: "Not authenticated", 
-        debug: {
-          hasSession: !!req.session,
-          sessionID: req.sessionID || "None",
-          hasCookies: !!req.headers.cookie
-        }
-      });
-    }
-    
-    return res.status(401).json({ message: "Not authenticated" });
+    return obj;
+  }, {} as Record<string, string>);
+
+  console.log("Auth status check:", { 
+    hasUser: !!req.user, 
+    hasSession: !!req.session,
+    sessionID: req.sessionID,
+    cookieNames: Object.keys(parsedCookies),
+    sessionCookieExists: !!parsedCookies['todo_session'],
+    headers: {
+      cookie: req.headers.cookie ? "Present" : "Missing",
+      origin: req.headers.origin,
+      referer: req.headers.referer,
+      host: req.headers.host
+    },
+    isProduction
   });
+
+  if (req.user) {
+    return res.status(200).json({ user: req.user });
+  }
+
+  // Always return debugging info for session issues
+  return res.status(401).json({ 
+    message: "Not authenticated", 
+    debug: {
+      hasSession: !!req.session,
+      sessionID: req.sessionID || "None",
+      hasCookies: !!req.headers.cookie,
+      cookieNames: Object.keys(parsedCookies),
+      isProd: isProduction
+    }
+  });
+});
 
   // OAuth configuration check endpoint (for diagnostic purposes)
   app.get("/api/auth/config-check", (req, res) => {
