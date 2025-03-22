@@ -61,16 +61,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Configure session with PostgreSQL for production or memory for development
   let sessionConfig: session.SessionOptions = {
     secret: SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
+    resave: true, // Changed to true to ensure session is saved on each request
+    saveUninitialized: true, // Changed to true to create session for all users
+    name: 'todo_session', // Give our session cookie a specific name
     cookie: { 
       secure: isProduction, 
       maxAge: 86400000, // 1 day
       sameSite: isProduction ? 'none' : 'lax',
+      httpOnly: true, // Cookie only accessible via HTTP(S), not JavaScript
+      path: '/', // Always set the path for consistency
       // Set the domain for production to ensure cookies work correctly
       ...(isProduction && {
         domain: '.agenticforce.io', // Use the root domain to allow sharing across subdomains
-        path: '/'
       })
     }
   };
