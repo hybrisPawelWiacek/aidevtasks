@@ -77,17 +77,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen }) => {
 
   const onLoginSubmit = async (data: LoginFormValues) => {
     try {
+      console.log("Attempting login with email:", data.email);
       await emailLogin(data.email, data.password);
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("Login error in form submission:", error);
+      // Error will be handled by the toast in AuthContext.tsx
     }
   };
 
   const onRegisterSubmit = async (data: RegisterFormValues) => {
     try {
+      console.log("Attempting registration with username:", data.username, "and email:", data.email);
       await registerUser(data);
     } catch (error) {
-      console.error("Registration error:", error);
+      console.error("Registration error in form submission:", error);
+      // Error will be handled by the toast in AuthContext.tsx
     }
   };
 

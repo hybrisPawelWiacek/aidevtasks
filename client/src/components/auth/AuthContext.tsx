@@ -106,7 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         console.log("API Request: POST /api/auth/login", { 
           dataType: "object",
-          dataPreview: JSON.stringify({ email, password })
+          dataPreview: { email } // Don't log password
         });
         
         const response = await fetch("/api/auth/login", {
@@ -121,18 +121,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log(`API Response: ${response.status} ${response.statusText} for POST /api/auth/login`);
         
         if (!response.ok) {
-          const errorData = await response.json();
+          const errorData = await response.json().catch(() => ({ message: "Unable to parse error response" }));
+          console.error("Login error response:", errorData);
           throw new Error(errorData.message || "Login failed");
         }
         
-        const data = await response.json();
-        if (!data || !data.user) {
+        const data = await response.json().catch(() => {
+          console.error("Failed to parse JSON from successful login response");
           throw new Error("Invalid response format from server");
+        });
+        
+        if (!data || !data.user) {
+          console.error("Invalid user data in response:", data);
+          throw new Error("Invalid user data received from server");
         }
         
         return data.user;
       } catch (error) {
-        console.error("Login error:", error);
+        console.error("Login processing error:", error);
         throw error;
       }
     },
@@ -144,9 +150,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
     },
     onError: (error) => {
+      console.error("Login error details:", error);
       toast({
         title: "Login failed",
-        description: error instanceof Error ? error.message : "The string did not match the expected pattern.",
+        description: error instanceof Error ? error.message : "Invalid credentials or server error",
         variant: "destructive",
       });
     },
@@ -158,7 +165,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         console.log("API Request: POST /api/auth/register", { 
           dataType: "object",
-          dataPreview: JSON.stringify(userData)
+          dataPreview: { email: userData.email, username: userData.username, displayName: userData.displayName } // Don't log passwords
         });
         
         const response = await fetch("/api/auth/register", {
@@ -173,18 +180,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log(`API Response: ${response.status} ${response.statusText} for POST /api/auth/register`);
         
         if (!response.ok) {
-          const errorData = await response.json();
+          const errorData = await response.json().catch(() => ({ message: "Unable to parse error response" }));
+          console.error("Registration error response:", errorData);
           throw new Error(errorData.message || "Registration failed");
         }
         
-        const data = await response.json();
-        if (!data || !data.user) {
+        const data = await response.json().catch(() => {
+          console.error("Failed to parse JSON from successful registration response");
           throw new Error("Invalid response format from server");
+        });
+        
+        if (!data || !data.user) {
+          console.error("Invalid user data in registration response:", data);
+          throw new Error("Invalid user data received from server");
         }
         
         return data.user;
       } catch (error) {
-        console.error("Registration error:", error);
+        console.error("Registration processing error:", error);
         throw error;
       }
     },
@@ -196,9 +209,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
     },
     onError: (error) => {
+      console.error("Registration error details:", error);
       toast({
         title: "Registration failed",
-        description: error instanceof Error ? error.message : "The string did not match the expected pattern.",
+        description: error instanceof Error ? error.message : "Could not create account. Please try again.",
         variant: "destructive",
       });
     },

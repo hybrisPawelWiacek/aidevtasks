@@ -229,6 +229,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // User exists, check password
         if (!user.password_hash) {
+          console.log("No password hash found for user:", user.email);
           return done(null, false, { message: "This account doesn't have a password set" });
         }
         
