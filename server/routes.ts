@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import express from "express";
-import { insertTaskSchema, taskValidationSchema, registerUserSchema, loginUserSchema } from "@shared/schema";
+import { insertTaskSchema, taskValidationSchema, registerUserSchema, loginUserSchema, users } from "@shared/schema";
 import { ZodError, z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import passport from "passport";
@@ -13,8 +13,9 @@ import ConnectPgSimple from "connect-pg-simple";
 import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
+import { eq } from "drizzle-orm";
 import { PostgresStorage } from "./pg-storage";
-import { initializeDatabase, createDemoTasks, initializeSessionTable } from "./db";
+import { initializeDatabase, createDemoTasks, initializeSessionTable, db } from "./db";
 
 // Initialize environment variables
 dotenv.config();
@@ -454,9 +455,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return done(null, false, { message: 'Invalid email or password' });
         }
         
-        // Check if user has a password (might be a Google OAuth user)
-        if (!user.password) {
+        // Check if the user has a Google account but no password
+        if (user.googleId && (!user.password || user.password === '')) {
           return done(null, false, { message: 'This account uses Google Sign-In. Please sign in with Google.' });
+        }
+        
+        // Check if user has a password
+        if (!user.password || user.password === '') {
+          console.log("User has no password but trying to login:", user.email);
+          // Fix by setting a password for this account
+          const hashedPassword = await bcrypt.hash(password, 10);
+          await db.update(users)
+            .set({ password: hashedPassword })
+            .where(eq(users.id, user.id));
+          
+          // Update user object with the new password
+          user.password = hashedPassword;
+          console.log("Set password for user:", user.email);
+          
+          // Continue with the updated user
+          return done(null, user);
         }
         
         // Verify password
@@ -467,6 +485,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         return done(null, user);
       } catch (error) {
+        console.error("Error in local strategy:", error);
         return done(error);
       }
     }
