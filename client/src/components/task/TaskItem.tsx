@@ -37,12 +37,12 @@ export const TaskItem: React.FC<TaskItemProps> = ({
 
   // Adding data attributes to help with sorting
   const priorityValue = task.priority === "high" ? 3 : task.priority === "medium" ? 2 : 1;
-  const sortOrder = task.completed || task.status === "Closed" ? `closed-${priorityValue}` : `open-${priorityValue}`;
+  const sortOrder = task.completed ? `closed-${priorityValue}` : `open-${priorityValue}`;
 
   return (
     <div 
       className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-4"
-      data-completed={task.completed || task.status === "Closed" ? "true" : "false"}
+      data-completed={task.completed ? "true" : "false"}
       data-priority={task.priority}
       data-sort-order={sortOrder}
     >
@@ -79,7 +79,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
           <div className="flex items-center justify-between gap-2 mb-1">
             <h3 className={cn(
               "font-medium pr-2 text-gray-900",
-              (task.completed || task.status === "Closed") && "line-through text-gray-500"
+              task.completed && "line-through text-gray-500"
             )}>
               {task.title}
             </h3>
@@ -87,10 +87,10 @@ export const TaskItem: React.FC<TaskItemProps> = ({
             {/* Priority Tag */}
             <div className={cn(
               "px-2 py-0.5 rounded-full text-xs font-medium",
-              task.completed || task.status === "Closed" ? "bg-gray-100 text-gray-600" : priorityClasses[task.priority as PriorityLevel] || priorityClasses.medium
+              task.completed ? "bg-gray-100 text-gray-600" : priorityClasses[task.priority as PriorityLevel] || priorityClasses.medium
             )}>
               <span className={cn(
-                (task.completed || task.status === "Closed") && "line-through"
+                task.completed && "line-through"
               )}>
                 {task.priority === "high" && "High Priority"}
                 {task.priority === "medium" && "Medium Priority"}
@@ -101,7 +101,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
 
           <p className={cn(
             "text-sm mb-3 text-gray-600",
-            (task.completed || task.status === "Closed") && "line-through text-gray-400"
+            task.completed && "line-through text-gray-400"
           )}>
             {task.description}
           </p>
@@ -122,6 +122,51 @@ export const TaskItem: React.FC<TaskItemProps> = ({
                   <span>{task.category}</span>
                 </div>
               )}
+              
+              {/* Content Link */}
+              {task.contentLink && (
+                <div className="flex items-center gap-1">
+                  {task.contentType === "youtube" ? (
+                    <>
+                      <Youtube className="h-3.5 w-3.5 text-red-600" />
+                      <a
+                        href={task.contentLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        Watch YT
+                      </a>
+                    </>
+                  ) : task.contentType === "article" ? (
+                    <>
+                      <Globe className="h-3.5 w-3.5 text-blue-600" />
+                      <a
+                        href={task.contentLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        Read article
+                      </a>
+                    </>
+                  ) : (
+                    <>
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      <a
+                        href={task.contentLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        Open link
+                      </a>
+                    </>
+                  )}
+                </div>
+              )}
+              
+
             </div>
 
             {/* Task Actions */}

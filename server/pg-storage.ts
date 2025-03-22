@@ -75,6 +75,8 @@ export class PostgresStorage implements IStorage {
     const [newTask] = await db.insert(tasks).values({
       title: task.title,
       description: task.description || null,
+      contentLink: task.contentLink || null,
+      contentType: task.contentType || null,
       dueDate: task.dueDate,
       priority: task.priority || 'medium',
       completed: task.completed === undefined ? false : task.completed,
