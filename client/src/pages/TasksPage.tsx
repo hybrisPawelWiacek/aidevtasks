@@ -20,7 +20,7 @@ export function TasksPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
-  const [activeSortOption, setActiveSortOption] = useState<SortOption>("dueDate-asc");
+  const [activeSortOption, setActiveSortOption] = useState<SortOption>("default");
 
   // Tasks query
   const { data: tasks = [] } = useQuery({

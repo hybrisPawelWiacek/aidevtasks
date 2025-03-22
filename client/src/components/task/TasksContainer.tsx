@@ -21,7 +21,7 @@ export const TasksContainer: React.FC<TasksContainerProps> = ({ userId }) => {
   const queryClient = useQueryClient();
 
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
-  const [sortOption, setSortOption] = useState<SortOption>("date-desc");
+  const [sortOption, setSortOption] = useState<SortOption>("default"); // Default sort option
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | undefined>(undefined);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -117,93 +117,121 @@ export const TasksContainer: React.FC<TasksContainerProps> = ({ userId }) => {
     },
   });
 
-  // Filter tasks
+  // Filter tasks based on the active filter
   const filteredTasks = useMemo(() => {
-    return tasks.filter((task) => {
-      if (activeFilter === "all") return true;
-      if (activeFilter === "completed") return task.completed;
-      if (activeFilter === "today") {
-        try {
-          return isToday(parseISO(task.dueDate));
-        } catch {
-          return false;
-        }
-      }
-      if (activeFilter === "upcoming") {
-        try {
-          return isFuture(parseISO(task.dueDate));
-        } catch {
-          return false;
-        }
-      }
-      if (activeFilter === "high") return task.priority === "high";
-      return true;
-    });
+    switch (activeFilter) {
+      case "all":
+        return tasks;
+      case "today":
+        return tasks.filter(task => task.dueDate && isToday(parseISO(task.dueDate)));
+      case "upcoming":
+        return tasks.filter(task => task.dueDate && isFuture(parseISO(task.dueDate)));
+      case "completed":
+        return tasks.filter(task => task.completed);
+      case "overdue":
+        return tasks.filter(task => task.dueDate && isPast(parseISO(task.dueDate)) && !task.completed);
+      default:
+        return tasks;
+    }
   }, [tasks, activeFilter]);
 
-  // Custom sort function with multiple sorting criteria
-  const sortTasksByPriorityAndStatus = (a: Task, b: Task) => {
+  // Helper function to get priority value from a task
+  const getPriorityValue = (task: Task) => {
     const priorityOrder = { high: 3, medium: 2, low: 1 };
-    const priorityA = priorityOrder[a.priority] || 0;
-    const priorityB = priorityOrder[b.priority] || 0;
-
-    // First level: Completed status
-    if (a.completed !== b.completed) {
-      return a.completed ? 1 : -1; // Completed tasks come after open tasks
-    }
-    
-    // Second level: Priority
-    if (priorityA !== priorityB) {
-      return priorityB - priorityA; // High priority tasks come first
-    }
-    
-    // Third level: Due date (closer dates come first)
-    const dateA = a.dueDate ? new Date(a.dueDate).getTime() : 0;
-    const dateB = b.dueDate ? new Date(b.dueDate).getTime() : 0;
-    
-    if (dateA !== dateB) {
-      // For same priority, closer due date comes first (today before tomorrow)
-      // If one has no due date, it comes last
-      if (dateA === 0) return 1;
-      if (dateB === 0) return -1;
-      return dateA - dateB; // Reversed from dateB - dateA to prioritize closer dates
-    }
-    
-    // Fourth level: Content completeness
-    const countFilledProperties = (task: Task) => {
-      let count = 0;
-      // Count non-empty properties that represent content
-      if (task.title && task.title.trim() !== '') count++;
-      if (task.description && task.description.trim() !== '') count++;
-      if (task.dueDate) count++;
-      // Only count category if it's not "none"
-      if (task.category && task.category.trim() !== '' && task.category.toLowerCase() !== 'none') count++;
-      if (task.labels && task.labels.length > 0) count++;
-      // Add more properties here as they're added to the model
-      return count;
-    };
-    
-    const contentCountA = countFilledProperties(a);
-    const contentCountB = countFilledProperties(b);
-    
-    if (contentCountA !== contentCountB) {
-      return contentCountB - contentCountA; // More filled properties come first
-    }
-    
-    // Fifth level: Creation timestamp
-    const createdAtA = new Date(a.createdAt || 0).getTime();
-    const createdAtB = new Date(b.createdAt || 0).getTime();
-    
-    return createdAtB - createdAtA; // More recent creation comes first
+    return priorityOrder[task.priority] || 0;
   };
 
+  // Custom sort functions for different sorting options
+  const sortFunctions = {
+    default: (a: Task, b: Task) => {
+      const priorityOrder = { high: 3, medium: 2, low: 1 };
+      const priorityA = priorityOrder[a.priority] || 0;
+      const priorityB = priorityOrder[b.priority] || 0;
 
-  // Sort tasks (using the new custom sort function)
+      // First level: Completed status
+      if (a.completed !== b.completed) {
+        return a.completed ? 1 : -1; // Completed tasks come after open tasks
+      }
+
+      // Second level: Priority
+      if (priorityA !== priorityB) {
+        return priorityB - priorityA; // High priority tasks come first
+      }
+
+      // Third level: Due date (closer dates come first)
+      const dateA = a.dueDate ? new Date(a.dueDate).getTime() : 0;
+      const dateB = b.dueDate ? new Date(b.dueDate).getTime() : 0;
+
+      if (dateA !== dateB) {
+        // For same priority, closer due date comes first (today before tomorrow)
+        // If one has no due date, it comes last
+        if (dateA === 0) return 1;
+        if (dateB === 0) return -1;
+        return dateA - dateB; // Reversed from dateB - dateA to prioritize closer dates
+      }
+
+      // Fourth level: Content completeness
+      const countFilledProperties = (task: Task) => {
+        let count = 0;
+        // Count non-empty properties that represent content
+        if (task.title && task.title.trim() !== '') count++;
+        if (task.description && task.description.trim() !== '') count++;
+        if (task.dueDate) count++;
+        // Only count category if it's not "none"
+        if (task.category && task.category.trim() !== '' && task.category.toLowerCase() !== 'none') count++;
+        if (task.labels && task.labels.length > 0) count++;
+        // Add more properties here as they're added to the model
+        return count;
+      };
+
+      const contentCountA = countFilledProperties(a);
+      const contentCountB = countFilledProperties(b);
+
+      if (contentCountA !== contentCountB) {
+        return contentCountB - contentCountA; // More filled properties come first
+      }
+
+      // Fifth level: Creation timestamp
+      const createdAtA = new Date(a.createdAt || 0).getTime();
+      const createdAtB = new Date(b.createdAt || 0).getTime();
+
+      return createdAtB - createdAtA; // More recent creation comes first
+    },
+    "date-asc": (a: Task, b: Task) => {
+      const dateA = a.dueDate ? new Date(a.dueDate).getTime() : 0;
+      const dateB = b.dueDate ? new Date(b.dueDate).getTime() : 0;
+
+      if (dateA === 0) return 1;
+      if (dateB === 0) return -1;
+      return dateA - dateB; // Oldest first
+    },
+
+    "date-desc": (a: Task, b: Task) => {
+      const dateA = a.dueDate ? new Date(a.dueDate).getTime() : 0;
+      const dateB = b.dueDate ? new Date(b.dueDate).getTime() : 0;
+
+      if (dateA === 0) return 1;
+      if (dateB === 0) return -1;
+      return dateB - dateA; // Newest first
+    },
+
+    priority: (a: Task, b: Task) => {
+      const priorityA = getPriorityValue(a);
+      const priorityB = getPriorityValue(b);
+      return priorityB - priorityA; // Higher priority first
+    },
+
+    alphabetical: (a: Task, b: Task) => {
+      return a.title.localeCompare(b.title); // A to Z
+    }
+  };
+
+  // Sort tasks using the selected sort option
   const sortedTasks = useMemo(() => {
-    return [...filteredTasks].sort(sortTasksByPriorityAndStatus);
-  }, [filteredTasks]);
+    return [...filteredTasks].sort(sortFunctions[sortOption]);
+  }, [filteredTasks, sortOption]);
 
-  // Separate active and completed tasks
+  // Separate active and completed tasks (preserving the sort order within each section)
   const { activeTasks, completedTasks } = useMemo(() => {
     const active = sortedTasks.filter(task => !task.completed);
     const completed = sortedTasks.filter(task => task.completed);
@@ -312,7 +340,7 @@ export const TasksContainer: React.FC<TasksContainerProps> = ({ userId }) => {
                   </div>
                 </div>
               )}
-              
+
               {/* Completed Tasks Section */}
               {completedTasks.length > 0 && (
                 <div>

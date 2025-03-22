@@ -8,7 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export type SortOption = "date-asc" | "date-desc" | "priority" | "alphabetical";
+export type SortOption = "default" | "date-asc" | "date-desc" | "priority" | "alphabetical";
 
 interface TaskSortProps {
   sortOption: SortOption;
@@ -20,6 +20,7 @@ export const TaskSort: React.FC<TaskSortProps> = ({
   onSortChange,
 }) => {
   const sortOptions: { id: SortOption; label: string; icon: React.ReactNode }[] = [
+    { id: "default", label: "Default", icon: <ListOrdered className="h-4 w-4" /> },
     { id: "date-asc", label: "Date (Oldest)", icon: <Calendar className="h-4 w-4" /> },
     { id: "date-desc", label: "Date (Newest)", icon: <Calendar className="h-4 w-4" /> },
     { id: "priority", label: "Priority", icon: <Flag className="h-4 w-4" /> },
