@@ -73,7 +73,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       sameSite: 'none',
       httpOnly: true, // Cookie only accessible via HTTP(S), not JavaScript
       path: '/', // Always set the path for consistency
-      domain: '.repl.co', // Allow the cookie to work across repl.co subdomains
+      // Remove domain restriction to allow cookies to work on any domain
     }
   };
 
