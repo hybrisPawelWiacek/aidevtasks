@@ -16,6 +16,30 @@ app.set('trust proxy', 1);
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Add CORS middleware for production environment only
+if (process.env.REPLIT_ENVIRONMENT === "production" || process.env.NODE_ENV === "production") {
+  console.log("Adding CORS headers for production environment");
+  app.use((req, res, next) => {
+    const allowedOrigins = ['https://todo.agenticforce.io'];
+    const origin = req.headers.origin;
+    
+    if (origin && allowedOrigins.includes(origin)) {
+      res.header('Access-Control-Allow-Origin', origin);
+    }
+    
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+    
+    next();
+  });
+}
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;

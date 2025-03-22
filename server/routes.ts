@@ -76,6 +76,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       sameSite: isProduction ? 'none' : 'lax', // Use 'none' in production for cross-site cookies
       httpOnly: true, // Cookie only accessible via HTTP(S), not JavaScript
       path: '/', // Always set the path for consistency
+      domain: isProduction ? '.agenticforce.io' : undefined, // Set domain for production
     }
   };
 
