@@ -11,7 +11,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
-      <div className="w-full max-w-3xl mx-auto px-4">
+      <div className="w-full max-w-[calc(3xl*1.1)] mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex items-center gap-2 pl-1">
