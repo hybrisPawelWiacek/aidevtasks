@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   testEnvironment: 'jsdom',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/client/src/$1',
@@ -15,5 +15,6 @@ module.exports = {
     'server/**/*.{js,ts}',
     '!**/node_modules/**'
   ],
-  coverageDirectory: 'coverage'
+  coverageDirectory: 'coverage',
+  extensionsToTreatAsEsm: ['.jsx', '.ts', '.tsx']
 };

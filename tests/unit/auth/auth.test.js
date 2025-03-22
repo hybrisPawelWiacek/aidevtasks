@@ -1,4 +1,4 @@
-const { describe, it, expect, beforeEach, afterEach, jest } = require('@jest/globals');
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 
 // Mock the AuthContext before importing components that use it
 jest.mock('@/components/auth/AuthContext', () => ({
@@ -7,10 +7,10 @@ jest.mock('@/components/auth/AuthContext', () => ({
 }));
 
 // Import the components after mocking
-const { render, screen, fireEvent, waitFor } = require('@testing-library/react');
-const { LoginButton } = require('@/components/auth/LoginButton');
-const { AuthModal } = require('@/components/auth/AuthModal');
-const { useAuth } = require('@/components/auth/AuthContext');
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { LoginButton } from '@/components/auth/LoginButton';
+import { AuthModal } from '@/components/auth/AuthModal';
+import { useAuth } from '@/components/auth/AuthContext';
 
 describe('Authentication Components', () => {
   // Tests for LoginButton component
