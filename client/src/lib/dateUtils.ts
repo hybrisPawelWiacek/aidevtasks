@@ -1,21 +1,21 @@
-import { format, formatDistanceToNow, isToday, isTomorrow, isYesterday, parseISO } from "date-fns";
+import { format, formatDistanceToNow, isToday, isTomorrow, isYesterday, parseISO, formatDistance } from "date-fns";
 
 export function formatDate(dateString: string): string {
   try {
     const date = parseISO(dateString);
-    
+
     if (isToday(date)) {
       return `Today`;
     }
-    
+
     if (isTomorrow(date)) {
       return `Tomorrow`;
     }
-    
+
     if (isYesterday(date)) {
       return `Yesterday`;
     }
-    
+
     return format(date, "MMM d, yyyy");
   } catch (error) {
     // Return the original string if parsing fails
@@ -48,4 +48,10 @@ export function formatDateForInput(dateString: string): string {
   } catch (error) {
     return dateString;
   }
+}
+
+export function formatDateRelative(date: string | Date): string {
+  if (!date) return "";
+  const dateObj = typeof date === "string" ? parseISO(date) : date;
+  return formatDistance(dateObj, new Date(), { addSuffix: true });
 }
