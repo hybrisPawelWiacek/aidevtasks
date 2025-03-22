@@ -25,8 +25,9 @@ const SESSION_SECRET = process.env.SESSION_SECRET || "ai-dev-tasks-secret";
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 // For production, always use the correct callback URL for the deployed app
+// Hard-code the production callback URL to match exactly what's in Google Cloud Console
 const CALLBACK_URL = isProduction 
-  ? (process.env.CALLBACK_URL || "https://todo.agenticforce.io/api/auth/google/callback")
+  ? "https://todo.agenticforce.io/api/auth/google/callback"
   : (process.env.CALLBACK_URL || "http://localhost:5000/api/auth/google/callback");
 
 // Log environment info for debugging
@@ -36,7 +37,8 @@ console.log("Environment Info:", {
   hasClientId: !!GOOGLE_CLIENT_ID,
   hasClientSecret: !!GOOGLE_CLIENT_SECRET
 });
-const DOMAIN = isProduction ? (process.env.DOMAIN || "todo.agenticforce.io") : (process.env.DOMAIN || "localhost");
+// Hard-code the domain to match exactly what's in Google Cloud Console
+const DOMAIN = isProduction ? "todo.agenticforce.io" : (process.env.DOMAIN || "localhost");
 
 // Initialize storage
 const storage = new PostgresStorage();
@@ -455,10 +457,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           clientIdLength: envClientId ? envClientId.length : 0,
           clientIdFirstChars: envClientId ? envClientId.substring(0, 8) + "..." : "N/A",
           clientSecretExists: !!envClientSecret,
-          callbackUrl: envCallbackUrl || 'not set',
-          redirectUri: envRedirectUri || 'not set',
-          jsOrigin: envJsOrigin || 'not set',
-          domain: envDomain || 'not set',
+          callbackUrl: CALLBACK_URL,
+          redirectUri: CALLBACK_URL,
+          jsOrigin: "https://todo.agenticforce.io",
+          domain: DOMAIN,
         },
         environment: {
           nodeEnv: process.env.NODE_ENV,
