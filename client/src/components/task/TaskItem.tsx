@@ -70,7 +70,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
           <div className="flex items-center justify-between gap-2 mb-1">
             <h3 className={cn(
               "font-medium pr-2 text-gray-900",
-              (task.completed || task.status === "Closed") && "line-through"
+              (task.completed || task.status === "Closed") && "line-through text-gray-500"
             )}>
               {task.title}
             </h3>
@@ -78,10 +78,10 @@ export const TaskItem: React.FC<TaskItemProps> = ({
             {/* Priority Tag */}
             <div className={cn(
               "px-2 py-0.5 rounded-full text-xs font-medium",
-              task.completed ? "bg-gray-100 text-gray-600" : priorityClasses[task.priority as PriorityLevel] || priorityClasses.medium
+              task.completed || task.status === "Closed" ? "bg-gray-100 text-gray-600" : priorityClasses[task.priority as PriorityLevel] || priorityClasses.medium
             )}>
               <span className={cn(
-                task.status === "Closed" && "line-through"
+                (task.completed || task.status === "Closed") && "line-through"
               )}>
                 {task.priority === "high" && "High Priority"}
                 {task.priority === "medium" && "Medium Priority"}
@@ -92,7 +92,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
 
           <p className={cn(
             "text-sm mb-3 text-gray-600",
-            task.completed && "line-through"
+            (task.completed || task.status === "Closed") && "line-through text-gray-400"
           )}>
             {task.description}
           </p>
