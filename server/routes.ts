@@ -11,7 +11,13 @@ import pgSession from "connect-pg-simple";
 import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import { PostgresStorage } from "./pg-storage";
-import { initializeDatabase, createDemoTasks, db, pool } from "./db";
+import { 
+  initializeDatabase, 
+  createDemoTasks, 
+  db, 
+  pool, 
+  initializeUserSessionsTable 
+} from "./db";
 
 // Initialize environment variables
 dotenv.config();
@@ -28,8 +34,9 @@ const DOMAIN = process.env.DOMAIN || "localhost";
 const storage = new PostgresStorage();
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Initialize database
+  // Initialize database and session tables
   await initializeDatabase();
+  await initializeUserSessionsTable();
 
   // Rate limiting
   const apiLimiter = rateLimit({
@@ -44,13 +51,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Configure session
   const PostgresStore = pgSession(session);
+  
+  // Create a more resilient session store configuration
+  let sessionStore;
+  try {
+    sessionStore = new PostgresStore({
+      pool,
+      tableName: 'user_sessions',
+      // Don't attempt to create the table automatically to avoid constraint errors
+      createTableIfMissing: false 
+    });
+  } catch (error) {
+    console.error("Error initializing session store:", error);
+    // Fallback to memory store for development if postgres store fails
+    const MemoryStore = session.MemoryStore;
+    sessionStore = new MemoryStore();
+  }
+  
   app.use(
     session({
-      store: new PostgresStore({
-        pool,
-        tableName: 'user_sessions',
-        createTableIfMissing: true
-      }),
+      store: sessionStore,
       secret: SESSION_SECRET,
       resave: false,
       saveUninitialized: false,

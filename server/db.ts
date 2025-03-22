@@ -115,21 +115,69 @@ export async function createDemoTasks(userId: number) {
 // Function to initialize the session table for PostgreSQL session store
 export async function initializeSessionTable() {
   try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS "session" (
-        "sid" varchar NOT NULL COLLATE "default",
-        "sess" json NOT NULL,
-        "expire" timestamp(6) NOT NULL,
-        CONSTRAINT "session_pkey" PRIMARY KEY ("sid")
+    // First check if the session table already exists
+    const checkTableExists = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'session'
       );
-      
-      CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
     `);
     
-    console.log('Session table initialized successfully');
+    // Only create the table if it doesn't exist
+    if (!checkTableExists.rows[0].exists) {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "session" (
+          "sid" varchar NOT NULL COLLATE "default",
+          "sess" json NOT NULL,
+          "expire" timestamp(6) NOT NULL,
+          CONSTRAINT "session_pkey" PRIMARY KEY ("sid")
+        );
+        
+        CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+      `);
+      console.log('Session table created successfully');
+    } else {
+      console.log('Session table already exists, skipping creation');
+    }
+    
     return true;
   } catch (error) {
     console.error('Failed to initialize session table:', error);
+    return false;
+  }
+}
+
+// Function to initialize the user_sessions table for PostgreSQL session store
+export async function initializeUserSessionsTable() {
+  try {
+    // First check if the user_sessions table already exists
+    const checkTableExists = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'user_sessions'
+      );
+    `);
+    
+    // Only create the table if it doesn't exist
+    if (!checkTableExists.rows[0].exists) {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "user_sessions" (
+          "sid" varchar NOT NULL COLLATE "default",
+          "sess" json NOT NULL,
+          "expire" timestamp(6) NOT NULL,
+          CONSTRAINT "user_sessions_pkey" PRIMARY KEY ("sid")
+        );
+        
+        CREATE INDEX IF NOT EXISTS "IDX_user_sessions_expire" ON "user_sessions" ("expire");
+      `);
+      console.log('User sessions table created successfully');
+    } else {
+      console.log('User sessions table already exists, skipping creation');
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Failed to initialize user sessions table:', error);
     return false;
   }
 }
