@@ -18,7 +18,9 @@ import { initializeDatabase, createDemoTasks, initializeSessionTable } from "./d
 dotenv.config();
 
 // Production configuration
-const isProduction = process.env.NODE_ENV === "production";
+// For Replit, check if REPLIT_ENVIRONMENT is defined or manually set to production 
+// and default to development if not explicitly set
+const isProduction = process.env.REPLIT_ENVIRONMENT === "production" || process.env.NODE_ENV === "production";
 const SESSION_SECRET = process.env.SESSION_SECRET || "ai-dev-tasks-secret";
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -27,6 +29,14 @@ const CALLBACK_URL = isProduction
   ? "https://todo.agentforce.io/api/auth/google/callback" 
   : (process.env.CALLBACK_URL || "http://localhost:5000/api/auth/google/callback");
 const DOMAIN = isProduction ? "todo.agentforce.io" : (process.env.DOMAIN || "localhost");
+
+// Debug for deployment troubleshooting
+console.log("Environment Info:", {
+  isProduction,
+  callbackURL: CALLBACK_URL,
+  hasClientId: !!GOOGLE_CLIENT_ID,
+  hasClientSecret: !!GOOGLE_CLIENT_SECRET
+});
 
 // Initialize storage
 const storage = new PostgresStorage();

@@ -7,7 +7,8 @@ interface GoogleUser {
 }
 
 // Configure to detect production environment
-const isProduction = import.meta.env.PROD;
+// Always use import.meta.env.PROD instead of process.env for Vite projects
+const isProduction = import.meta.env.PROD || (import.meta.env.VITE_ENVIRONMENT === "production");
 
 export function useGoogleAuth() {
   const [isInitializing, setIsInitializing] = useState(true);
@@ -26,6 +27,8 @@ export function useGoogleAuth() {
     setIsSigningIn(true);
     
     try {
+      console.log("Authentication mode:", isProduction ? "Production" : "Development");
+      
       if (isProduction) {
         // In production, redirect to Google OAuth login endpoint
         window.location.href = "/api/auth/google/login";

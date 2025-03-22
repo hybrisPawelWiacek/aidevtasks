@@ -9,7 +9,7 @@ interface LoginButtonProps {
 
 export const LoginButton: React.FC<LoginButtonProps> = ({ 
   onMockLogin,
-  isProduction = process.env.NODE_ENV === 'production'
+  isProduction = import.meta.env.PROD
 }) => {
   const handleLogin = () => {
     if (isProduction) {
