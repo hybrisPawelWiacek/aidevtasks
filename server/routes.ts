@@ -14,7 +14,6 @@ import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import { eq, sql } from "drizzle-orm";
-import cors from "cors";
 import { PostgresStorage } from "./pg-storage";
 import { initializeDatabase, createDemoTasks, initializeSessionTable, db } from "./db";
 
@@ -50,42 +49,6 @@ const storage = new PostgresStorage();
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize database
   await initializeDatabase();
-  
-  // Configure CORS with credentials support for production
-  // Allow the production domain and localhost for development
-  const allowedOrigins = [
-    'https://todo.agenticforce.io',
-    'http://localhost:3000',
-    'http://localhost:5000',
-    'http://localhost:5173'
-  ];
-  
-  // Add any Replit preview URLs if present
-  if (process.env.REPLIT_URL) {
-    allowedOrigins.push(process.env.REPLIT_URL);
-  }
-  
-  // Log the allowed origins
-  console.log("CORS: Allowed origins:", allowedOrigins);
-  
-  // Configure CORS middleware with simpler, more reliable settings
-  app.use(cors({
-    origin: true, // Allow all origins 
-    credentials: true, // Very important for cookies/session
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    exposedHeaders: ['Set-Cookie'],
-    maxAge: 86400 // Cache preflight requests for 1 day
-  }));
-  
-  // Handle OPTIONS preflight requests directly
-  app.options('*', cors({
-    origin: true,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    maxAge: 86400
-  }));
 
   // Rate limiting
   const apiLimiter = rateLimit({
@@ -98,33 +61,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Apply rate limiting to all API routes
   app.use("/api", apiLimiter);
 
-  // Configure session without forcing secure cookies for development compatibility
-  const customDomain = process.env.DOMAIN || "todo.agenticforce.io";
-  const isReplitURL = !!process.env.REPLIT_URL;
-  const isCustomDomain = !isReplitURL && isProduction;
-  // False for dev, true for production but we're setting to false everywhere for compatibility
-  const isSecure = false;
-  
-  console.log("Enhanced session configuration:", { 
-    isProduction, 
-    isSecure,
-    isCustomDomain,
-    customDomain: customDomain || "Not set",
-    replitURL: process.env.REPLIT_URL || "Not set",
-  });
-  
+  // Configure session with PostgreSQL for production or memory for development
   let sessionConfig: session.SessionOptions = {
     secret: SESSION_SECRET,
-    resave: true, // Always save session to ensure persistence
-    saveUninitialized: true, // Create session for unauthenticated users too
-    name: 'todo_session',
+    resave: true, // Ensure session is saved on each request
+    saveUninitialized: true, // Create session for all users
+    name: 'todo_session', // Give our session cookie a specific name
     cookie: { 
-      secure: isSecure, // Always require HTTPS in production
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days for even better persistence
-      sameSite: isProduction ? 'none' : 'lax', // For cross-site cookies in production
-      httpOnly: true,
-      path: '/',
-      domain: isCustomDomain ? customDomain : undefined, // Set domain for custom domains
+      secure: isProduction, // Only use secure cookies in production
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days instead of 1 for better persistence
+      sameSite: isProduction ? 'none' : 'lax', // Use 'none' in production for cross-site cookies
+      httpOnly: true, // Cookie only accessible via HTTP(S), not JavaScript
+      path: '/', // Always set the path for consistency
     }
   };
 
@@ -268,48 +216,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   }
 
-  // Auth middleware with enhanced debugging and error handling
+  // Auth middleware with improved debugging
   const requireAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    // Enhanced logging with more details
     console.log("Auth check:", { 
       hasUser: !!req.user, 
       hasSession: !!req.session,
       sessionID: req.sessionID,
-      cookies: req.headers.cookie ? "Present" : "Missing",
-      cookieLength: req.headers.cookie ? req.headers.cookie.length : 0,
+      cookies: req.headers.cookie,
       url: req.url,
       method: req.method,
-      isProduction,
-      isSecure
+      isProduction
     });
     
     if (!req.user) {
-      // More detailed logging for debugging auth failures
-      const cookieHeader = req.headers.cookie || '';
-      const hasTodoSession = cookieHeader.includes('todo_session');
-      
-      console.log("Unauthorized request details:", {
+      console.log("Unauthorized request:", {
         path: req.path,
         method: req.method,
         headers: {
-          cookie: cookieHeader ? "Present" : "Missing",
-          cookieCount: cookieHeader ? cookieHeader.split(';').length : 0, 
-          hasTodoSession,
+          cookie: req.headers.cookie ? "Present" : "Missing",
           origin: req.headers.origin,
           referer: req.headers.referer
-        },
-        sessionExists: !!req.session,
-        sessionID: req.sessionID || "None",
-      });
-      
-      return res.status(401).json({ 
-        message: "Authentication required", 
-        details: isProduction ? undefined : {
-          sessionExists: !!req.session,
-          hasCookies: !!req.headers.cookie,
-          hasTodoSession
         }
       });
+      return res.status(401).json({ message: "Unauthorized" });
     }
     next();
   };
@@ -658,94 +587,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Login route (email/password) with simplified session handling
+  // Login route (email/password)
   app.post("/api/auth/login", (req, res, next) => {
     try {
       // Validate request body
       const validatedData = loginUserSchema.parse(req.body);
-      
-      console.log("Login attempt:", { 
-        email: validatedData.email,
-        hasSession: !!req.session,
-        sessionID: req.sessionID
-      });
 
-      // Direct login for development or test accounts
-      if (validatedData.email === 'jan.dzban@mail.com' && validatedData.password === 'pw1234pw') {
-        console.log("⚠️ Using direct login for test user");
-        
-        // Find the test user
-        storage.getUserByEmail(validatedData.email)
-          .then(user => {
-            if (!user) {
-              console.error("Test user not found in database");
-              return res.status(401).json({ message: "User not found" });
-            }
-            
-            console.log("✅ Found test user:", user.id);
-            
-            // Simplified test user login - don't try to destroy session first
-            req.login(user, (loginErr) => {
-              if (loginErr) {
-                console.error("Login error:", loginErr);
-                return res.status(500).json({ message: "Error logging in" });
-              }
-              
-              console.log("Session created for test user:", req.sessionID);
-              
-              // Set a simple cookie to help with testing
-              res.cookie('user_id', user.id, {
-                maxAge: 24 * 60 * 60 * 1000,
-                httpOnly: false, // Allow JS access for testing
-                path: '/',
-              });
-              
-              // Return the user data
-              return res.status(200).json(user);
-            });
-          })
-          .catch(err => {
-            console.error("Error getting test user:", err);
-            return res.status(500).json({ message: "Error finding user" });
-          });
-        
-        return;
-      }
-
-      // Standard passport authentication for non-test users
       passport.authenticate('local', (err: any, user: any, info: any) => {
         if (err) {
-          console.error("Authentication error:", err);
           return res.status(500).json({ message: "Authentication error" });
         }
 
         if (!user) {
-          console.log("Login failed:", info?.message || "Invalid credentials");
           return res.status(401).json({ message: info?.message || "Invalid credentials" });
         }
-        
-        // Enhanced logging for successful authentication
-        console.log("Authentication successful, setting session for user:", { 
-          id: user.id, 
-          email: user.email,
-          sessionID: req.sessionID
-        });
 
-        // Simplified login without session regeneration
         req.login(user, (loginErr) => {
           if (loginErr) {
-            console.error("Login session error:", loginErr);
             return res.status(500).json({ message: "Error logging in" });
           }
-          
-          // Set additional cookie for backup authentication
-          res.cookie('user_id', user.id, {
-            maxAge: 24 * 60 * 60 * 1000,
-            httpOnly: false, // Allow JS access
-            path: '/',
-          });
-          
-          console.log("Login successful, returning user data");
           return res.status(200).json(user);
         });
       })(req, res, next);
@@ -759,90 +619,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Auth status check with improved diagnostics and production fallback
-  app.get("/api/auth/status", async (req, res) => {
-    const cookieHeader = req.headers.cookie || '';
-    const hasTodoSession = cookieHeader.includes('todo_session');
-    const origin = req.headers.origin || '';
-    const referer = req.headers.referer || '';
-    
+  // Auth status check with improved diagnostics
+  app.get("/api/auth/status", (req, res) => {
     console.log("Auth status check:", { 
       hasUser: !!req.user, 
       hasSession: !!req.session,
       sessionID: req.sessionID,
       headers: {
-        cookie: cookieHeader ? "Present" : "Missing",
-        cookieLength: cookieHeader.length,
-        hasTodoSession,
-        origin,
-        referer,
+        cookie: req.headers.cookie ? "Present" : "Missing",
+        origin: req.headers.origin,
+        referer: req.headers.referer,
         host: req.headers.host
       },
       isProduction
     });
     
-    // Standard flow for authenticated user
     if (req.user) {
       return res.status(200).json({ user: req.user });
-    }
-    
-    // Special production emergency auth for specific user in production
-    // This helps bridge the gap between development and production environments
-    if (isProduction && 
-        (origin.includes('todo.agenticforce.io') || referer.includes('todo.agenticforce.io'))) {
-      
-      try {
-        console.log("Attempting emergency auth recovery in production");
-        
-        // Set proper CORS headers for cross-domain cookies
-        res.setHeader('Access-Control-Allow-Origin', origin || 'https://todo.agenticforce.io');
-        res.setHeader('Access-Control-Allow-Credentials', 'true');
-        
-        // Try to find the test user directly
-        const result = await db.query.users.findFirst({
-          where: (users, { eq }) => eq(users.email, 'jan.dzban@mail.com')
-        });
-        
-        if (result) {
-          console.log("Found emergency auth user:", result.id);
-          
-          // Try to log the user in
-          req.login(result, (loginErr) => {
-            if (loginErr) {
-              console.error("Emergency login failed:", loginErr);
-              
-              // Add debug information in response
-              return res.status(401).json({ 
-                message: "Not authenticated", 
-                debug: {
-                  reason: "Emergency login failed",
-                  error: loginErr.message
-                }
-              });
-            }
-            
-            // User is now logged in
-            console.log("Emergency login successful for user:", result.id);
-            
-            // Force session save to persist login
-            if (req.session) {
-              req.session.save((saveErr) => {
-                if (saveErr) {
-                  console.error("Session save error after emergency login:", saveErr);
-                }
-                // Return user data after emergency login
-                return res.status(200).json({ user: result });
-              });
-            } else {
-              return res.status(200).json({ user: result });
-            }
-          });
-          
-          return; // Early return - response will be sent by login callback
-        }
-      } catch (emergencyError) {
-        console.error("Error in emergency auth status recovery:", emergencyError);
-      }
     }
     
     // Return more detailed error info in development
@@ -852,13 +645,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         debug: {
           hasSession: !!req.session,
           sessionID: req.sessionID || "None",
-          hasCookies: !!req.headers.cookie,
-          hasTodoSession
+          hasCookies: !!req.headers.cookie
         }
       });
     }
     
-    // Standard "not authenticated" response for production
     return res.status(401).json({ message: "Not authenticated" });
   });
 
@@ -897,72 +688,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Logout with improved error handling
+  // Logout
   app.post("/api/auth/logout", (req, res) => {
-    console.log("Logout request, session ID:", req.sessionID);
-    
-    // Clear the user_id cookie
-    res.clearCookie('user_id', { path: '/' });
-    
-    // Check if we have a user to log out
-    if (!req.user) {
-      console.log("No authenticated user to log out");
-      return res.status(200).json({ message: "No user to log out" });
-    }
-    
-    // Use Passport's logout function
     req.logout((err) => {
       if (err) {
-        console.error("Error during logout:", err);
         return res.status(500).json({ message: "Error logging out" });
       }
-      
-      console.log("User logged out successfully");
       return res.status(200).json({ message: "Logged out successfully" });
     });
   });
 
   // Tasks API
-  // Get all tasks for the current user with test mode support
+  // Get all tasks for current user
   app.get("/api/tasks", requireAuth, async (req, res) => {
     try {
-      // Get user ID from the authenticated user
       const userId = (req.user as any).id;
-      
-      // Check if this is a test mode request
-      const isTestMode = req.headers['x-dev-testing'] === 'true' || (req.query.test === 'true');
-      
-      // Log request details
-      console.log("Task request details:", {
-        authenticatedUser: userId, 
-        isTestMode,
-        headers: Object.keys(req.headers),
-        testQueryParam: req.query.test,
-        userAgent: req.headers['user-agent']
-      });
-      
-      // For test mode, use the special test user
-      if (isTestMode) {
-        try {
-          // Attempt to find the test user
-          const testUser = await storage.getUserByEmail('jan.dzban@mail.com');
-          if (testUser) {
-            console.log("⚠️ Using test user for task retrieval:", testUser.id);
-            const tasks = await storage.getTasksByUserId(testUser.id);
-            console.log(`Found ${tasks.length} tasks for test user`);
-            return res.status(200).json(tasks);
-          } else {
-            console.error("Test user not found in database");
-          }
-        } catch (e) {
-          console.error("Error getting test user tasks:", e);
-        }
-      }
-      
-      // Standard flow - get tasks for the authenticated user
-      console.log("Using standard authentication flow for tasks, user:", userId);
       const tasks = await storage.getTasksByUserId(userId);
-      console.log(`Found ${tasks.length} tasks for authenticated user ${userId}`);
       return res.status(200).json(tasks);
     } catch (error) {
       console.error("Error fetching tasks:", error);
@@ -970,64 +711,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create a new task with test mode support
+  // Create task
   app.post("/api/tasks", requireAuth, async (req, res) => {
     try {
-      let userId = (req.user as any).id;
-      
-      // Check if this is a test mode request
-      const isTestMode = req.headers['x-dev-testing'] === 'true' || (req.query.test === 'true');
-      
-      // Log task creation request details
-      console.log("Task creation request:", {
-        authenticatedUser: userId, 
-        isTestMode,
-        headers: Object.keys(req.headers),
-        testQueryParam: req.query.test,
-        taskData: { 
-          ...req.body,
-          title: req.body.title,
-          dueDate: req.body.dueDate,
-        }
-      });
-      
-      // For test mode, use the special test user
-      if (isTestMode) {
-        try {
-          // Attempt to find the test user
-          const testUser = await storage.getUserByEmail('jan.dzban@mail.com');
-          if (testUser) {
-            console.log("⚠️ Using test user for task creation:", testUser.id);
-            // Override the user ID
-            userId = testUser.id;
-          } else {
-            console.error("Test user not found in database for task creation");
-          }
-        } catch (e) {
-          console.error("Error getting test user for task creation:", e);
-        }
-      }
-      
-      // Create the task with the appropriate user ID (original or test user)
+      const userId = (req.user as any).id;
       const taskData = { ...req.body, userId };
-      
+
       // Validate task data
-      try {
-        const validatedData = taskValidationSchema.parse(taskData);
-        
-        // Create the task
-        const task = await storage.createTask(validatedData);
-        console.log("Task created successfully:", task.id, "for user:", userId);
-        return res.status(201).json(task);
-      } catch (validationError) {
-        if (validationError instanceof ZodError) {
-          const formattedError = fromZodError(validationError);
-          console.error("Task validation error:", formattedError.message);
-          return res.status(400).json({ message: formattedError.message });
-        }
-        throw validationError;
-      }
+      const validatedData = taskValidationSchema.parse(taskData);
+
+      const task = await storage.createTask(validatedData);
+      return res.status(201).json(task);
     } catch (error) {
+      if (error instanceof ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.message });
+      }
       console.error("Error creating task:", error);
       return res.status(500).json({ message: "Server error creating task" });
     }
