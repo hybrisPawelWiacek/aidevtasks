@@ -89,6 +89,15 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       // Reset UI
       setNewCategoryName("");
       setIsAddingCategory(false);
+      
+      // Small delay to allow the dropdown to update with the new category
+      setTimeout(() => {
+        // Trigger a click on the select to refresh it
+        const selectTrigger = document.querySelector('[data-state="closed"]');
+        if (selectTrigger) {
+          (selectTrigger as HTMLElement).click();
+        }
+      }, 100);
     },
     onError: (error: any) => {
       toast({
@@ -289,60 +298,66 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                       
                       {/* Option to add new category */}
                       <SelectGroup>
-                        <SelectLabel>
-                          <div 
-                            className="w-full flex items-center justify-start mt-1 px-2 text-blue-600 hover:text-blue-800 cursor-pointer"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              
-                              // Forcefully close the select dropdown
-                              const selectTrigger = document.querySelector('[id^="radix-"][data-state="open"]');
-                              if (selectTrigger) {
-                                (selectTrigger as HTMLElement).click();
-                              }
-                              
-                              // Wait for dropdown animation to complete before showing the form
-                              setTimeout(() => {
+                        {!isAddingCategory ? (
+                          <SelectLabel>
+                            <div 
+                              className="w-full flex items-center justify-start mt-1 px-2 text-blue-600 hover:text-blue-800 cursor-pointer"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
                                 setIsAddingCategory(true);
-                              }, 150);
-                            }}
-                          >
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add new category
+                              }}
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Add new category
+                            </div>
+                          </SelectLabel>
+                        ) : (
+                          <div className="p-2 space-y-2" onClick={(e) => e.stopPropagation()}>
+                            <Input
+                              placeholder="Enter new category name"
+                              value={newCategoryName}
+                              onChange={(e) => setNewCategoryName(e.target.value)}
+                              className="flex-1"
+                              autoFocus
+                            />
+                            <div className="flex items-center gap-2">
+                              <Button 
+                                type="button" 
+                                size="sm" 
+                                className="flex-1"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  if (newCategoryName.trim()) {
+                                    createCategoryMutation.mutate(newCategoryName.trim());
+                                    // Keep dropdown open until mutation completes
+                                  }
+                                }}
+                                disabled={createCategoryMutation.isPending || !newCategoryName.trim()}
+                              >
+                                {createCategoryMutation.isPending ? "Adding..." : "Add"}
+                              </Button>
+                              <Button 
+                                type="button" 
+                                variant="outline" 
+                                size="sm"
+                                className="flex-1"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setIsAddingCategory(false);
+                                  setNewCategoryName("");
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
                           </div>
-                        </SelectLabel>
+                        )}
                       </SelectGroup>
                     </SelectContent>
                   </Select>
-                  
-                  {/* New category input */}
-                  {isAddingCategory && (
-                    <div className="mt-2 flex items-center gap-2">
-                      <Input
-                        placeholder="Enter new category name"
-                        value={newCategoryName}
-                        onChange={(e) => setNewCategoryName(e.target.value)}
-                        className="flex-1"
-                      />
-                      <Button 
-                        type="button" 
-                        size="sm" 
-                        onClick={() => {
-                          if (newCategoryName.trim()) {
-                            createCategoryMutation.mutate(newCategoryName.trim());
-                          }
-                        }}
-                        disabled={createCategoryMutation.isPending || !newCategoryName.trim()}
-                      >
-                        {createCategoryMutation.isPending ? "Adding..." : "Add"}
-                      </Button>
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => {
-                          setIsAddingCategory(false);
                           setNewCategoryName("");
                         }}
                       >
