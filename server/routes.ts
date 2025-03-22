@@ -8,11 +8,10 @@ import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import session from "express-session";
 import pgSession from "connect-pg-simple";
-import { pool } from "./db";
 import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import { PostgresStorage } from "./pg-storage";
-import { initializeDatabase, createDemoTasks } from "./db";
+import { initializeDatabase, createDemoTasks, db, pool } from "./db";
 
 // Initialize environment variables
 dotenv.config();
