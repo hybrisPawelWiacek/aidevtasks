@@ -2,19 +2,26 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
+    // Clone the response before reading the body
+    // This allows the original response to be used later if needed
+    const clonedRes = res.clone();
+    
     try {
       // Try to parse the response as JSON first
-      const data = await res.json();
+      const data = await clonedRes.json();
       console.error("API error response:", data);
       
       // Use the message from the JSON response if available
       const errorMessage = data.message || res.statusText;
       throw new Error(`${res.status}: ${errorMessage}`);
     } catch (e) {
-      // If it's not JSON, fall back to text
-      const text = await res.text();
-      console.error("API error (non-JSON):", { status: res.status, text });
-      throw new Error(`${res.status}: ${text || res.statusText}`);
+      // If it's not JSON or clone failed, use status text directly
+      console.error("API error:", { 
+        status: res.status, 
+        statusText: res.statusText,
+        parseError: e instanceof Error ? e.message : String(e)
+      });
+      throw new Error(`${res.status}: ${res.statusText}`);
     }
   }
 }

@@ -678,21 +678,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         storage.getUserByEmail(validatedData.email)
           .then(user => {
             if (!user) {
+              console.error("Test user not found in database");
               return res.status(401).json({ message: "User not found" });
             }
             
             console.log("✅ Found test user:", user.id);
             
-            // Clear any existing session
-            if (req.session) {
-              req.session.destroy((err) => {
-                if (err) {
-                  console.error("Error destroying existing session:", err);
-                }
-              });
-            }
-            
-            // Login the user and create a new session
+            // Simplified test user login - don't try to destroy session first
             req.login(user, (loginErr) => {
               if (loginErr) {
                 console.error("Login error:", loginErr);
@@ -711,11 +703,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Return the user data
               return res.status(200).json(user);
             });
-            
-            return;
           })
           .catch(err => {
-            console.error("Error getting user:", err);
+            console.error("Error getting test user:", err);
             return res.status(500).json({ message: "Error finding user" });
           });
         
@@ -741,36 +731,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sessionID: req.sessionID
         });
 
-        // Clear any existing session first
-        if (req.session) {
-          req.session.regenerate((err) => {
-            if (err) {
-              console.error("Error regenerating session:", err);
-            }
-            
-            // Login with the new session
-            req.login(user, (loginErr) => {
-              if (loginErr) {
-                console.error("Login session error:", loginErr);
-                return res.status(500).json({ message: "Error logging in" });
-              }
-              
-              console.log("Login successful, returning user data");
-              return res.status(200).json(user);
-            });
+        // Simplified login without session regeneration
+        req.login(user, (loginErr) => {
+          if (loginErr) {
+            console.error("Login session error:", loginErr);
+            return res.status(500).json({ message: "Error logging in" });
+          }
+          
+          // Set additional cookie for backup authentication
+          res.cookie('user_id', user.id, {
+            maxAge: 24 * 60 * 60 * 1000,
+            httpOnly: false, // Allow JS access
+            path: '/',
           });
-        } else {
-          // If no session object, just login directly
-          req.login(user, (loginErr) => {
-            if (loginErr) {
-              console.error("Login session error:", loginErr);
-              return res.status(500).json({ message: "Error logging in" });
-            }
-            
-            console.log("Login successful, returning user data");
-            return res.status(200).json(user);
-          });
-        }
+          
+          console.log("Login successful, returning user data");
+          return res.status(200).json(user);
+        });
       })(req, res, next);
     } catch (error) {
       if (error instanceof ZodError) {
@@ -920,12 +897,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Logout
+  // Logout with improved error handling
   app.post("/api/auth/logout", (req, res) => {
+    console.log("Logout request, session ID:", req.sessionID);
+    
+    // Clear the user_id cookie
+    res.clearCookie('user_id', { path: '/' });
+    
+    // Check if we have a user to log out
+    if (!req.user) {
+      console.log("No authenticated user to log out");
+      return res.status(200).json({ message: "No user to log out" });
+    }
+    
+    // Use Passport's logout function
     req.logout((err) => {
       if (err) {
+        console.error("Error during logout:", err);
         return res.status(500).json({ message: "Error logging out" });
       }
+      
+      console.log("User logged out successfully");
       return res.status(200).json({ message: "Logged out successfully" });
     });
   });
