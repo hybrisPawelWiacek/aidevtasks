@@ -28,15 +28,15 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const CALLBACK_URL = isProduction 
   ? "https://todo.agentforce.io/api/auth/google/callback" 
   : (process.env.CALLBACK_URL || "http://localhost:5000/api/auth/google/callback");
-const DOMAIN = isProduction ? "todo.agentforce.io" : (process.env.DOMAIN || "localhost");
 
-// Debug for deployment troubleshooting
+// Log environment info for debugging
 console.log("Environment Info:", {
   isProduction,
   callbackURL: CALLBACK_URL,
   hasClientId: !!GOOGLE_CLIENT_ID,
   hasClientSecret: !!GOOGLE_CLIENT_SECRET
 });
+const DOMAIN = isProduction ? "todo.agentforce.io" : (process.env.DOMAIN || "localhost");
 
 // Initialize storage
 const storage = new PostgresStorage();
@@ -114,16 +114,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Configure Google OAuth Strategy
   if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
     console.log("Using Google OAuth with callback URL:", CALLBACK_URL);
-    passport.use(new GoogleStrategy({
+    // Configure the Google OAuth strategy with explicit options
+    const googleStrategyOptions = {
       clientID: GOOGLE_CLIENT_ID,
       clientSecret: GOOGLE_CLIENT_SECRET,
       callbackURL: CALLBACK_URL,
       scope: ['profile', 'email'],
       // Add some options that might help with deployment
       userProfileURL: 'https://www.googleapis.com/oauth2/v3/userinfo',
-      // Don't proxy requests to Google
       proxy: false
-    }, async (accessToken, refreshToken, profile, done) => {
+    };
+    
+    console.log("Google Strategy Options:", {
+      ...googleStrategyOptions,
+      clientSecret: "[REDACTED]" // Don't log actual secret
+    });
+    
+    passport.use(new GoogleStrategy(googleStrategyOptions, 
+    async (accessToken, refreshToken, profile, done) => {
       try {
         const email = profile.emails?.[0]?.value;
         const displayName = profile.displayName;
@@ -211,14 +219,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   // Google OAuth routes
-  app.get("/api/auth/google/login", passport.authenticate("google"));
+  app.get("/api/auth/google/login", (req, res, next) => {
+    console.log("Starting Google OAuth login flow...");
+    try {
+      passport.authenticate("google", (err: Error | null) => {
+        if (err) {
+          console.error("Error initiating Google OAuth:", err);
+          return res.redirect("/login?error=" + encodeURIComponent(err.message));
+        }
+        next();
+      })(req, res, next);
+    } catch (error: any) { // Using any here because error can be of different types
+      console.error("Critical error in Google OAuth login:", error);
+      res.status(500).send(`OAuth Error: ${error.message}`);
+    }
+  });
   
-  app.get("/api/auth/google/callback", 
+  app.get("/api/auth/google/callback", (req, res, next) => {
+    console.log("Received Google OAuth callback", {
+      query: req.query,
+      headers: {
+        host: req.headers.host,
+        referer: req.headers.referer,
+      }
+    });
+    
     passport.authenticate("google", { 
-      failureRedirect: "/login",
+      failureRedirect: "/login?error=authentication_failed",
       successRedirect: "/"
-    })
-  );
+    }, (err: Error | null, user: any) => {
+      if (err) {
+        console.error("Error during Google OAuth callback handling:", err);
+        return res.redirect("/login?error=" + encodeURIComponent(err.message));
+      }
+      
+      if (!user) {
+        console.error("No user returned from Google OAuth");
+        return res.redirect("/login?error=no_user_returned");
+      }
+      
+      req.login(user, (loginErr) => {
+        if (loginErr) {
+          console.error("Error during login after OAuth:", loginErr);
+          return res.redirect("/login?error=login_failed");
+        }
+        return res.redirect("/");
+      });
+    })(req, res, next);
+  });
 
   // Auth status check
   app.get("/api/auth/status", (req, res) => {
