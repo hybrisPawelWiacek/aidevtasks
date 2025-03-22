@@ -1,7 +1,7 @@
 import React from "react";
 import { Task, PriorityLevel } from "@shared/schema";
 import { cn } from "@/lib/utils";
-import { Calendar, Edit, Tag, Trash } from "lucide-react";
+import { Calendar, Edit, Tag, Trash, Youtube, Globe, ExternalLink } from "lucide-react";
 import { formatDate } from "@/lib/dateUtils";
 
 interface TaskItemProps {

@@ -17,6 +17,8 @@ export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description"),
+  contentLink: text("content_link"),
+  contentType: text("content_type"),
   completed: boolean("completed").default(false).notNull(),
   priority: text("priority").default("medium").notNull(),
   dueDate: text("due_date").notNull(),

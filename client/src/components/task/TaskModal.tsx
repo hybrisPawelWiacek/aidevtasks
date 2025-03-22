@@ -60,6 +60,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     defaultValues: {
       title: task?.title || "",
       description: task?.description || "",
+      contentLink: task?.contentLink || "",
+      contentType: task?.contentType || "",
       dueDate: task?.dueDate || new Date().toISOString().split("T")[0],
       priority: task?.priority as "low" | "medium" | "high" || "medium",
       category: task?.category || "none",
@@ -74,6 +76,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       form.reset({
         title: task.title,
         description: task.description || "",
+        contentLink: task.contentLink || "",
+        contentType: task.contentType || "",
         dueDate: task.dueDate,
         priority: task.priority as "low" | "medium" | "high",
         category: task.category || "none",
@@ -84,6 +88,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       form.reset({
         title: "",
         description: "",
+        contentLink: "",
+        contentType: "",
         dueDate: new Date().toISOString().split("T")[0],
         priority: "medium",
         category: "none",
@@ -137,6 +143,39 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                       {...field} 
                       value={field.value || ''}
                       rows={3}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="contentLink"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Content Link</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="Add a link to a YouTube video or web article..." 
+                      {...field} 
+                      value={field.value || ''}
+                      onChange={(e) => {
+                        field.onChange(e.target.value);
+                        
+                        // Auto-detect content type
+                        const url = e.target.value;
+                        let contentType = "";
+                        if (url) {
+                          if (url.includes("youtube.com") || url.includes("youtu.be")) {
+                            contentType = "youtube";
+                          } else if (url.startsWith("http")) {
+                            contentType = "article";
+                          }
+                          form.setValue("contentType", contentType);
+                        }
+                      }}
                     />
                   </FormControl>
                   <FormMessage />
