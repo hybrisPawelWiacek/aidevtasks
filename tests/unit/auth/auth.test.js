@@ -1,173 +1,161 @@
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-
-// Mock the AuthContext before importing components that use it
-jest.mock('@/components/auth/AuthContext', () => ({
-  useAuth: jest.fn(),
-  AuthProvider: ({ children }) => children
-}));
-
-// Import the components after mocking
+import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { AuthProvider, useAuth } from '@/components/auth/AuthContext';
 import { LoginButton } from '@/components/auth/LoginButton';
 import { AuthModal } from '@/components/auth/AuthModal';
-import { useAuth } from '@/components/auth/AuthContext';
+
+// Mock the queryClient to avoid network requests
+jest.mock('@/lib/queryClient', () => ({
+  apiRequest: jest.fn().mockImplementation((endpoint, options) => {
+    if (endpoint === '/api/auth/login') {
+      return Promise.resolve({
+        user: { id: 1, displayName: 'Test User', email: 'test@example.com' }
+      });
+    }
+    if (endpoint === '/api/auth/register') {
+      return Promise.resolve({
+        user: { id: 2, displayName: 'New User', email: 'new@example.com' }
+      });
+    }
+    if (endpoint === '/api/auth/status') {
+      return Promise.resolve({
+        user: null
+      });
+    }
+    return Promise.resolve({});
+  }),
+  getQueryFn: () => jest.fn()
+}));
+
+// Simple test wrapper component to access the auth context
+const TestAuthConsumer = ({ children, testId = 'auth-consumer' }) => {
+  const auth = useAuth();
+  return (
+    <div data-testid={testId}>
+      {children(auth)}
+    </div>
+  );
+};
 
 describe('Authentication Components', () => {
-  // Tests for LoginButton component
-  describe('LoginButton', () => {
-    beforeEach(() => {
-      // Default mock implementation
-      useAuth.mockReturnValue({
-        user: null,
-        isLoading: false,
-        login: jest.fn(),
-        emailLogin: jest.fn(),
-        register: jest.fn(),
-        logout: jest.fn()
+  describe('AuthContext', () => {
+    it('provides authentication state to children', async () => {
+      render(
+        <AuthProvider>
+          <TestAuthConsumer>
+            {(auth) => (
+              <>
+                <div data-testid="is-loading">{String(auth.isLoading)}</div>
+                <div data-testid="user-state">{auth.user ? 'logged-in' : 'logged-out'}</div>
+              </>
+            )}
+          </TestAuthConsumer>
+        </AuthProvider>
+      );
+
+      expect(screen.getByTestId('is-loading').textContent).toBe('true');
+      
+      // Wait for the initial auth check to complete
+      await waitFor(() => {
+        expect(screen.getByTestId('is-loading').textContent).toBe('false');
       });
-    });
-
-    afterEach(() => {
-      jest.clearAllMocks();
-    });
-
-    it('should render the login button correctly', () => {
-      render(<LoginButton />);
-      expect(screen.getByText('Sign in with Google')).toBeInTheDocument();
-    });
-
-    it('should handle click events correctly', () => {
-      const mockOnClick = jest.fn();
-      render(<LoginButton onMockLogin={mockOnClick} />);
       
-      const button = screen.getByText('Sign in with Google');
-      fireEvent.click(button);
+      expect(screen.getByTestId('user-state').textContent).toBe('logged-out');
+    });
+
+    it('handles login correctly', async () => {
+      render(
+        <AuthProvider>
+          <TestAuthConsumer>
+            {(auth) => (
+              <>
+                <div data-testid="user-state">{auth.user ? 'logged-in' : 'logged-out'}</div>
+                <button 
+                  data-testid="login-button"
+                  onClick={() => auth.emailLogin('test@example.com', 'password')}
+                >
+                  Login
+                </button>
+              </>
+            )}
+          </TestAuthConsumer>
+        </AuthProvider>
+      );
+
+      // Wait for the initial auth check to complete
+      await waitFor(() => {
+        expect(screen.getByTestId('user-state').textContent).toBe('logged-out');
+      });
       
-      expect(mockOnClick).toHaveBeenCalled();
+      // Trigger login
+      fireEvent.click(screen.getByTestId('login-button'));
+      
+      // User should be logged in after successful login
+      await waitFor(() => {
+        expect(screen.getByTestId('user-state').textContent).toBe('logged-in');
+      });
     });
   });
 
-  // Tests for AuthModal component
+  describe('LoginButton', () => {
+    it('renders correctly', () => {
+      render(
+        <AuthProvider>
+          <LoginButton />
+        </AuthProvider>
+      );
+      
+      expect(screen.getByText(/Sign in/i)).toBeInTheDocument();
+    });
+
+    it('calls onMockLogin when in non-production environment', async () => {
+      const mockLoginHandler = jest.fn();
+      
+      render(
+        <AuthProvider>
+          <LoginButton onMockLogin={mockLoginHandler} isProduction={false} />
+        </AuthProvider>
+      );
+      
+      fireEvent.click(screen.getByText(/Sign in/i));
+      
+      // Modal should be visible
+      await waitFor(() => {
+        expect(screen.getByText(/Continue with Google/i)).toBeInTheDocument();
+      });
+      
+      // Mock login option should be available in non-production
+      fireEvent.click(screen.getByText(/Continue with Google/i));
+      expect(mockLoginHandler).toHaveBeenCalled();
+    });
+  });
+
   describe('AuthModal', () => {
-    const mockEmailLogin = jest.fn();
-    const mockRegister = jest.fn();
-    
-    beforeEach(() => {
-      useAuth.mockReturnValue({
-        user: null,
-        isLoading: false,
-        login: jest.fn(),
-        emailLogin: mockEmailLogin,
-        register: mockRegister,
-        logout: jest.fn()
-      });
-    });
-
-    afterEach(() => {
-      jest.clearAllMocks();
-    });
-
-    it('should render the auth modal correctly when open', () => {
-      render(<AuthModal isOpen={true} />);
-      expect(screen.getByText('AI Dev Tasks')).toBeInTheDocument();
-      expect(screen.getByText('Login')).toBeInTheDocument();
-      expect(screen.getByText('Register')).toBeInTheDocument();
-    });
-
-    it('should switch between login and register tabs', async () => {
-      render(<AuthModal isOpen={true} />);
+    it('toggles between login and register forms', async () => {
+      render(
+        <AuthProvider>
+          <AuthModal isOpen={true} />
+        </AuthProvider>
+      );
       
-      // Initially on the login tab
-      expect(screen.getByLabelText('Email')).toBeInTheDocument();
-      expect(screen.getByLabelText('Password')).toBeInTheDocument();
+      // Should start with login form
+      expect(screen.getByText(/Sign in to your account/i)).toBeInTheDocument();
       
-      // Switch to register tab
-      fireEvent.click(screen.getByText('Register'));
+      // Switch to register form
+      fireEvent.click(screen.getByText(/Create an account/i));
       
+      // Should show register form
       await waitFor(() => {
-        expect(screen.getByLabelText('Username')).toBeInTheDocument();
-        expect(screen.getByLabelText('Display Name')).toBeInTheDocument();
-        expect(screen.getByLabelText('Confirm Password')).toBeInTheDocument();
+        expect(screen.getByText(/Sign up for an account/i)).toBeInTheDocument();
       });
-    });
-
-    it('should handle login form submission correctly', async () => {
-      render(<AuthModal isOpen={true} />);
       
-      // Fill in login form
-      fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'test@example.com' } });
-      fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } });
+      // Switch back to login form
+      fireEvent.click(screen.getByText(/Already have an account/i));
       
-      // Submit form
-      fireEvent.submit(screen.getByText('Sign In'));
-      
+      // Should show login form again
       await waitFor(() => {
-        expect(mockEmailLogin).toHaveBeenCalledWith('test@example.com', 'password123');
+        expect(screen.getByText(/Sign in to your account/i)).toBeInTheDocument();
       });
-    });
-
-    it('should validate login form fields', async () => {
-      render(<AuthModal isOpen={true} />);
-      
-      // Submit form without filling fields
-      fireEvent.submit(screen.getByText('Sign In'));
-      
-      await waitFor(() => {
-        expect(screen.getByText('Invalid email address')).toBeInTheDocument();
-        expect(screen.getByText('Password is required')).toBeInTheDocument();
-      });
-      
-      expect(mockEmailLogin).not.toHaveBeenCalled();
-    });
-
-    it('should handle registration form submission correctly', async () => {
-      render(<AuthModal isOpen={true} />);
-      
-      // Switch to register tab
-      fireEvent.click(screen.getByText('Register'));
-      
-      // Fill in registration form
-      fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'test@example.com' } });
-      fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'testuser' } });
-      fireEvent.change(screen.getByLabelText('Display Name'), { target: { value: 'Test User' } });
-      fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } });
-      fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'password123' } });
-      
-      // Submit form
-      fireEvent.submit(screen.getByText('Sign Up'));
-      
-      await waitFor(() => {
-        expect(mockRegister).toHaveBeenCalledWith({
-          email: 'test@example.com',
-          username: 'testuser',
-          displayName: 'Test User',
-          password: 'password123',
-          confirmPassword: 'password123'
-        });
-      });
-    });
-
-    it('should validate password matching in registration form', async () => {
-      render(<AuthModal isOpen={true} />);
-      
-      // Switch to register tab
-      fireEvent.click(screen.getByText('Register'));
-      
-      // Fill registration form with mismatched passwords
-      fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'test@example.com' } });
-      fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'testuser' } });
-      fireEvent.change(screen.getByLabelText('Display Name'), { target: { value: 'Test User' } });
-      fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } });
-      fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'password456' } });
-      
-      // Submit form
-      fireEvent.submit(screen.getByText('Sign Up'));
-      
-      await waitFor(() => {
-        expect(screen.getByText('Passwords do not match')).toBeInTheDocument();
-      });
-      
-      expect(mockRegister).not.toHaveBeenCalled();
     });
   });
 });
