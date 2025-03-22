@@ -463,18 +463,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Check if user has a password
         if (!user.password || user.password === '') {
           console.log("User has no password but trying to login:", user.email);
-          // Fix by setting a password for this account
-          const hashedPassword = await bcrypt.hash(password, 10);
-          await db.update(users)
-            .set({ password: hashedPassword })
-            .where(eq(users.id, user.id));
           
-          // Update user object with the new password
-          user.password = hashedPassword;
-          console.log("Set password for user:", user.email);
-          
-          // Continue with the updated user
-          return done(null, user);
+          try {
+            // Fix by setting a password for this account
+            const hashedPassword = await bcrypt.hash(password, 10);
+            
+            // Update password in database
+            await storage.updateUser(user.id, { 
+              ...user,
+              password: hashedPassword 
+            });
+            
+            // Update user object with the new password
+            user.password = hashedPassword;
+            console.log("Set password for user:", user.email);
+            
+            // Continue with the updated user
+            return done(null, user);
+          } catch (err) {
+            console.error("Failed to update user password:", err);
+            return done(null, false, { message: 'Error updating account. Please try again.' });
+          }
         }
         
         // Verify password

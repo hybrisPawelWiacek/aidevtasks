@@ -8,6 +8,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, userData: Partial<User>): Promise<User>;
   getTask(id: number): Promise<Task | undefined>;
   getTasksByUserId(userId: number): Promise<Task[]>;
   createTask(task: InsertTask): Promise<Task>;
@@ -44,6 +45,33 @@ export class PostgresStorage implements IStorage {
     }).returning();
     
     return user;
+  }
+
+  async updateUser(id: number, userData: Partial<User>): Promise<User> {
+    // Get current user data
+    const existingUser = await this.getUser(id);
+    if (!existingUser) {
+      throw new Error(`User with id ${id} not found`);
+    }
+
+    // Update the user with merged data
+    const [updatedUser] = await db.update(users)
+      .set({
+        username: userData.username || existingUser.username,
+        email: userData.email || existingUser.email,
+        displayName: userData.displayName !== undefined ? userData.displayName : existingUser.displayName,
+        photoURL: userData.photoURL !== undefined ? userData.photoURL : existingUser.photoURL,
+        googleId: userData.googleId !== undefined ? userData.googleId : existingUser.googleId,
+        password: userData.password !== undefined ? userData.password : existingUser.password,
+      })
+      .where(eq(users.id, id))
+      .returning();
+    
+    if (!updatedUser) {
+      throw new Error(`Failed to update user with id ${id}`);
+    }
+    
+    return updatedUser;
   }
 
   async getTask(id: number): Promise<Task | undefined> {
