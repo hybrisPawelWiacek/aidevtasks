@@ -113,6 +113,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen }) => {
             </TabsList>
             
             <TabsContent value="login">
+              <div className="mb-4 flex justify-center">
+                <LoginButton 
+                  onMockLogin={handleMockLogin}
+                  isProduction={import.meta.env.PROD} 
+                />
+              </div>
+              
+              <div className="mb-4 flex items-center">
+                <Separator className="flex-grow" />
+                <span className="mx-2 text-sm text-gray-500">OR</span>
+                <Separator className="flex-grow" />
+              </div>
+              
               <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
@@ -144,19 +157,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen }) => {
                   {loginForm.formState.isSubmitting ? "Logging in..." : "Log in"}
                 </Button>
               </form>
-              
-              <div className="mt-4 flex items-center">
-                <Separator className="flex-grow" />
-                <span className="mx-2 text-sm text-gray-500">OR</span>
-                <Separator className="flex-grow" />
-              </div>
-              
-              <div className="mt-4 flex justify-center">
-                <LoginButton 
-                  onMockLogin={handleMockLogin}
-                  isProduction={import.meta.env.PROD} 
-                />
-              </div>
             </TabsContent>
             
             <TabsContent value="register">
