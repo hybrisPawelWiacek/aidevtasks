@@ -120,12 +120,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen }) => {
                 />
               </div>
               
-              <div className="mb-4 flex items-center justify-center w-full">
-                <div className="flex items-center w-full px-4">
-                  <Separator className="flex-grow" />
-                  <span className="mx-4 text-sm text-gray-500 font-medium whitespace-nowrap">OR</span>
-                  <Separator className="flex-grow" />
-                </div>
+              <div className="mb-4 relative flex items-center justify-center w-full px-6">
+                <Separator className="absolute w-full" />
+                <span className="relative px-4 text-sm text-gray-500 font-medium bg-background">OR</span>
               </div>
               
               <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
