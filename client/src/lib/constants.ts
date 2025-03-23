@@ -1,10 +1,13 @@
 export const CATEGORY_OPTIONS = [
-  "ML Fundamentals",
-  "Programming",
-  "NLP",
-  "Computer Vision",
-  "Infrastructure",
-  "Projects",
+  "n8n",
+  "Zapier",
+  "Make.com",
+  "MCP",
+  "Replit",
+  "Lovable",
+  "Windsurf",
+  "Fundamentals",
+  "Enterteinment AI",
 ];
 
 export const PRIORITY_LEVELS = {
