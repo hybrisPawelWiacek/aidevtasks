@@ -108,7 +108,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     defaultValues: {
       title: "",
       description: "",
-      dueDate: undefined,
+      dueDate: new Date(), // Preselect current date
       priority: "medium",
       category: "",
       contentLink: "",
@@ -130,7 +130,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       form.reset({
         title: "",
         description: "",
-        dueDate: undefined,
+        dueDate: new Date(), // Reset to current date as default
         priority: "medium",
         category: "",
         contentLink: "",
