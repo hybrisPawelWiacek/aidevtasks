@@ -88,12 +88,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Google login mutation
   const { mutateAsync: loginMutation, isPending: isLoggingIn } = useMutation({
     mutationFn: async ({ email, displayName, photoURL }: { email: string; displayName: string; photoURL?: string }) => {
-      const response = await apiRequest("POST", "/api/auth/google", { 
-        email, 
-        displayName, 
-        photoURL 
+      return await apiRequest("/api/auth/google", { 
+        method: "POST",
+        body: { email, displayName, photoURL } 
       });
-      return response.json();
     },
     onSuccess: (data) => {
       setUser(data);
@@ -232,7 +230,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Logout mutation
   const { mutateAsync: logoutMutation, isPending: isLoggingOut } = useMutation({
     mutationFn: async () => {
-      return await apiRequest("POST", "/api/auth/logout");
+      return await apiRequest("/api/auth/logout", { method: "POST" });
     },
     onSuccess: () => {
       setUser(null);
@@ -247,6 +245,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: error instanceof Error ? error.message : "Please try again later",
         variant: "destructive",
       });
+      console.error("Logout error:", error);
     },
   });
 
