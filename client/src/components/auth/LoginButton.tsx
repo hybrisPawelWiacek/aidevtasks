@@ -27,7 +27,7 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
       }
       
       // Now let's test with our client ID to specifically check if it's valid
-      const response = await fetch('https://accounts.google.com/o/oauth2/v2/auth?client_id=640277032312-n2amkdnbpupkfsvjk7ref40gep4o2qdn.apps.googleusercontent.com&response_type=code&scope=email&access_type=none&redirect_uri=https://todo.agenticforce.io&prompt=none&login_hint=skip');
+      const response = await fetch('https://accounts.google.com/o/oauth2/v2/auth?client_id=640277032312-n2amkdnbpupkfsvjk7ref40gep4o2qdn.apps.googleusercontent.com&response_type=code&scope=email&access_type=none&redirect_uri=https://todo.agenticforce.io/api/auth/google/callback&prompt=none&login_hint=skip');
       
       console.log("Google API verification response:", response.status, response.statusText);
       

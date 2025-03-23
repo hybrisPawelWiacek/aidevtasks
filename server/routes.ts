@@ -76,8 +76,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     secure: isProduction, // Only use secure cookies in production
     maxAge: 86400000, // 1 day in milliseconds
     sameSite: isProduction ? ('none' as const) : ('lax' as const), // Required for cross-site cookies
-    // Leave domain undefined to let browser set it automatically to current domain
-    domain: undefined,
+    // For production, set domain to todo.agenticforce.io
+    domain: isProduction ? 'todo.agenticforce.io' : undefined,
     // Set HttpOnly to true to prevent JS access to the cookie
     httpOnly: true
   };
