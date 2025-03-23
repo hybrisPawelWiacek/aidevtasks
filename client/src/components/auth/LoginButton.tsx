@@ -14,33 +14,25 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
 }) => {
   const { toast } = useToast();
   
-  // Verify the Google API connection
+  // We'll no longer directly verify Google API - instead, we'll rely on our backend
   const verifyGoogleAPI = async () => {
     try {
-      // First, let's try to access Google's OAuth endpoint without parameters to check connectivity
-      const connectTest = await fetch('https://accounts.google.com/o/oauth2/v2/auth');
-      console.log("Basic Google connectivity test:", connectTest.status, connectTest.statusText);
-      
-      if (connectTest.status >= 400) {
-        console.error("Cannot connect to Google OAuth service at all - possible network issue");
-        return false;
-      }
-      
-      // Now let's test with our client ID to specifically check if it's valid
-      const response = await fetch('https://accounts.google.com/o/oauth2/v2/auth?client_id=640277032312-n2amkdnbpupkfsvjk7ref40gep4o2qdn.apps.googleusercontent.com&response_type=code&scope=email&access_type=none&redirect_uri=https://todo.agenticforce.io/api/auth/google/callback&prompt=none&login_hint=skip');
-      
-      console.log("Google API verification response:", response.status, response.statusText);
-      
-      // For debugging, also log the URL to see if it matches what's in Google Cloud Console
+      // For debugging, log the OAuth configuration
       console.log("Google OAuth configured URLs:", {
         clientId: "640277032312-n2amkdnbpupkfsvjk7ref40gep4o2qdn.apps.googleusercontent.com",
         redirectUri: "https://todo.agenticforce.io/api/auth/google/callback",
         jsOrigin: "https://todo.agenticforce.io"
       });
       
-      return response.status < 400; // Consider it a success if status code is less than 400
+      // Instead of fetching Google directly (which causes CORS errors), 
+      // let's check if our backend is reachable
+      const healthCheck = await fetch('/api/auth/status');
+      console.log("Backend health check:", healthCheck.status, healthCheck.statusText);
+      
+      // Always return true - we'll let the backend handle any Google API issues
+      return true;
     } catch (error) {
-      console.error("Google API verification failed:", error);
+      console.error("Backend health check failed:", error);
       return false;
     }
   };
@@ -52,28 +44,11 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
       if (isProduction) {
         // Show loading toast
         toast({
-          title: "Preparing login...",
-          description: "Verifying connection to Google...",
-        });
-        
-        // First, verify Google API connection
-        const isGoogleAPIAccessible = await verifyGoogleAPI();
-        
-        if (!isGoogleAPIAccessible) {
-          toast({
-            variant: "destructive",
-            title: "Connection Error",
-            description: "Unable to connect to Google authentication service. This may be due to network issues or incorrect API credentials.",
-          });
-          return;
-        }
-        
-        // In production, redirect to Google OAuth login
-        toast({
           title: "Redirecting to Google...",
           description: "Please wait while we redirect you to Google for authentication.",
         });
         
+        // Skip verification and directly redirect to Google OAuth login
         // Add a small delay to allow toast to show
         setTimeout(() => {
           window.location.href = '/api/auth/google/login';
