@@ -119,7 +119,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
               {task.category && (
                 <div className="flex items-center gap-1">
                   <Tag className="h-3.5 w-3.5" />
-                  <span>{task.category}</span>
+                  <span>{task.category.startsWith('user-') ? task.category.substring(5) : task.category}</span>
                 </div>
               )}
               
