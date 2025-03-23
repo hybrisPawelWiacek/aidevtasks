@@ -121,7 +121,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen }) => {
               </div>
               
               <div className="mb-4 flex items-center justify-center w-full">
-                <div className="flex items-center w-full mx-6">
+                <div className="flex items-center w-full max-w-[85%]">
                   <Separator className="w-full" />
                   <span className="mx-4 text-sm text-gray-500 font-medium whitespace-nowrap">OR</span>
                   <Separator className="w-full" />
