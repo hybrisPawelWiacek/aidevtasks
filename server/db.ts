@@ -74,42 +74,105 @@ export async function createDemoTasks(userId: number) {
     const nextWeek = new Date(today);
     nextWeek.setDate(nextWeek.getDate() + 7);
     
-    // Demo tasks for new users
+    // Demo tasks for new users (one per global category)
     await db.insert(schema.tasks).values([
       {
-        title: "Set up development environment",
-        description: "Install required tools and dependencies for AI development",
+        title: "Automate workflow with n8n",
+        description: "Learn how to create your first automation workflow using n8n",
         dueDate: today.toISOString().split('T')[0],
         priority: "high",
         completed: false,
-        category: "Infrastructure",
+        category: "n8n",
+        contentLink: "https://docs.n8n.io/workflows/",
+        contentType: "website",
         userId: userId
       },
       {
-        title: "Review machine learning concepts",
-        description: "Study neural networks, supervised learning, and classification algorithms",
+        title: "Build Zapier integration",
+        description: "Connect your application with Zapier to automate tasks across platforms",
         dueDate: tomorrow.toISOString().split('T')[0],
         priority: "medium",
         completed: false,
-        category: "ML Fundamentals",
+        category: "zapier",
+        contentLink: "https://www.youtube.com/watch?v=PQvAM-M1fFs",
+        contentType: "video",
         userId: userId
       },
       {
-        title: "Explore NLP techniques",
-        description: "Learn about text preprocessing, tokenization, and embedding techniques",
+        title: "Create scenario in Make.com",
+        description: "Design your first automation scenario using Make.com's visual builder",
         dueDate: nextWeek.toISOString().split('T')[0],
         priority: "low",
         completed: false,
-        category: "NLP",
+        category: "make.com",
+        contentLink: "https://www.make.com/en/help/scenarios/creating-a-scenario",
+        contentType: "website",
         userId: userId
       },
       {
-        title: "Install Python and necessary libraries",
-        description: "Set up virtual environment with TensorFlow and PyTorch",
+        title: "Complete MCP certification path",
+        description: "Start the Microsoft Certified Professional learning path for Azure AI",
         dueDate: today.toISOString().split('T')[0],
         priority: "medium",
+        completed: false,
+        category: "mcp",
+        contentLink: "https://learn.microsoft.com/en-us/credentials/certifications/azure-ai-engineer/",
+        contentType: "website",
+        userId: userId
+      },
+      {
+        title: "Deploy first app on Replit",
+        description: "Create and deploy a full-stack application on Replit",
+        dueDate: tomorrow.toISOString().split('T')[0],
+        priority: "high",
         completed: true,
-        category: "Programming",
+        category: "replit",
+        contentLink: "https://www.youtube.com/watch?v=OJUyoKdIKzc",
+        contentType: "video",
+        userId: userId
+      },
+      {
+        title: "Implement Lovable UI patterns",
+        description: "Apply lovable user interface design principles to your current project",
+        dueDate: nextWeek.toISOString().split('T')[0],
+        priority: "medium",
+        completed: false,
+        category: "lovable",
+        contentLink: "https://www.nngroup.com/articles/ten-usability-heuristics/",
+        contentType: "website",
+        userId: userId
+      },
+      {
+        title: "Setup Windsurf development environment",
+        description: "Install and configure Windsurf framework for your next project",
+        dueDate: today.toISOString().split('T')[0],
+        priority: "low",
+        completed: false,
+        category: "windsurf",
+        contentLink: "https://windsurf.io/docs/getting-started",
+        contentType: "website",
+        userId: userId
+      },
+      {
+        title: "Review AI Fundamentals course",
+        description: "Complete the introductory course on AI concepts and applications",
+        dueDate: tomorrow.toISOString().split('T')[0],
+        priority: "high",
+        completed: false,
+        category: "fundamentals",
+        contentLink: "https://www.coursera.org/learn/ai-for-everyone",
+        contentType: "website",
+        userId: userId
+      },
+      {
+        title: "Explore Entertainment AI innovations",
+        description: "Research the latest applications of AI in entertainment and creative industries",
+        dueDate: nextWeek.toISOString().split('T')[0],
+        priority: "medium",
+        completed: false,
+        category: "enterteinment-ai",
+        contentLink: "https://www.youtube.com/watch?v=QPO-LOZlzxE",
+        contentType: "video",
         userId: userId
       }
     ]);
