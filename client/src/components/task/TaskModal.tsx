@@ -7,6 +7,7 @@ import { CalendarIcon, Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { useToast } from "@/components/ui/use-toast";
 import {
   Form,
   FormControl,
@@ -71,8 +72,36 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
+  const [userCategories, setUserCategories] = useState<Array<{id: number, name: string}>>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
+  const { toast } = useToast();
 
   const isEditMode = !!task;
+  
+  // Fetch user categories when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchUserCategories();
+    }
+  }, [isOpen]);
+  
+  const fetchUserCategories = async () => {
+    setIsLoadingCategories(true);
+    try {
+      const response = await fetch('/api/categories', {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setUserCategories(data);
+      }
+    } catch (error) {
+      console.error('Error fetching user categories:', error);
+    } finally {
+      setIsLoadingCategories(false);
+    }
+  };
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -293,7 +322,20 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                         <SelectSeparator />
                         <SelectGroup>
                           <SelectLabel>Your Categories</SelectLabel>
-                          {/* This would be populated with user-specific categories in a real app */}
+                          {userCategories.length > 0 ? (
+                            userCategories.map((category) => (
+                              <SelectItem
+                                key={`user-${category.id}`}
+                                value={`user-${category.name.toLowerCase().replace(/\s+/g, "-")}`}
+                              >
+                                {category.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                              {isLoadingCategories ? "Loading..." : "No custom categories yet"}
+                            </div>
+                          )}
                         </SelectGroup>
                         <SelectSeparator />
                         <div
@@ -342,11 +384,50 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                             // Update form value
                             field.onChange(newValue);
 
-                            // Add to CATEGORY_OPTIONS (this would require backend update in real app)
-                            // In a real app, you would save this to the database
-
-                            setIsAddingCategory(false);
-                            setNewCategoryName("");
+                            // Create the new category via API
+                            const createCategory = async () => {
+                              try {
+                                const response = await fetch('/api/categories', {
+                                  method: 'POST',
+                                  headers: {
+                                    'Content-Type': 'application/json',
+                                  },
+                                  credentials: 'include',
+                                  body: JSON.stringify({ name: newCategoryName.trim() }),
+                                });
+                                
+                                if (response.ok) {
+                                  const newCategory = await response.json();
+                                  
+                                  // Add the new category to our local state
+                                  setUserCategories(prev => [...prev, newCategory]);
+                                  
+                                  // Select the new category
+                                  const categoryValue = `user-${newCategory.name.toLowerCase().replace(/\s+/g, "-")}`;
+                                  field.onChange(categoryValue);
+                                  
+                                  toast({
+                                    title: "Category Created",
+                                    description: `"${newCategory.name}" has been added to your categories.`,
+                                  });
+                                } else {
+                                  const errorData = await response.json();
+                                  throw new Error(errorData.message || 'Failed to create category');
+                                }
+                              } catch (error) {
+                                console.error('Error creating category:', error);
+                                toast({
+                                  title: "Error",
+                                  description: error instanceof Error ? error.message : 'Failed to create category',
+                                  variant: "destructive",
+                                });
+                              } finally {
+                                setIsAddingCategory(false);
+                                setNewCategoryName("");
+                              }
+                            };
+                            
+                            createCategory();
                           }
                         }}
                       >
