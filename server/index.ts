@@ -29,7 +29,17 @@ app.use((req, res, next) => {
     
     // Only set allowed origins if request has an origin header
     if (requestOrigin) {
-      const allowedOrigins = ['https://todo.agenticforce.io', 'https://ai-developer-tracker-agenticforce-io.replit.app'];
+      // Get the Replit domain
+      const replitDomain = process.env.REPLIT_DOMAINS || '';
+      const replitURL = replitDomain ? `https://${replitDomain}` : '';
+      
+      const allowedOrigins = [
+        'https://todo.agenticforce.io', 
+        'https://ai-developer-tracker-agenticforce-io.replit.app',
+        replitURL
+      ].filter(Boolean); // Remove empty strings
+      
+      console.log("Allowed origins:", allowedOrigins);
       
       // Check if the request origin is allowed
       if (allowedOrigins.includes(requestOrigin)) {
@@ -39,6 +49,9 @@ app.use((req, res, next) => {
         res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Cookie, Set-Cookie, Authorization');
         res.header('Access-Control-Allow-Credentials', 'true');
         res.header('Access-Control-Expose-Headers', 'Set-Cookie');
+      } else {
+        // For debugging - log the rejected origin
+        console.log(`Rejected CORS request from origin: ${requestOrigin}`);
       }
     }
     
