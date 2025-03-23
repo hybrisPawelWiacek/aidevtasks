@@ -76,8 +76,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     secure: isProduction, // Only use secure cookies in production
     maxAge: 86400000, // 1 day in milliseconds
     sameSite: isProduction ? ('none' as const) : ('lax' as const), // Required for cross-site cookies
-    // For production, set domain to todo.agenticforce.io
-    domain: isProduction ? 'todo.agenticforce.io' : undefined,
+    // For production, don't set domain to allow it to work with any domain
+    domain: undefined, // Unset domain to allow cookies to work across all domains
     // Set HttpOnly to true to prevent JS access to the cookie
     httpOnly: true
   };
@@ -100,9 +100,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
   );
 
-  // Initialize passport
+  // Initialize passport with debug 
   app.use(passport.initialize());
   app.use(passport.session());
+  
+  // Debug middleware for session/auth
+  app.use((req, res, next) => {
+    console.log("Session debug:", { 
+      hasUser: !!req.user,
+      userId: req.user ? (req.user as any).id : null,
+      sessionID: req.sessionID,
+      cookies: req.headers.cookie
+    });
+    next();
+  });
 
   // Configure passport serialization
   passport.serializeUser((user: any, done) => {
