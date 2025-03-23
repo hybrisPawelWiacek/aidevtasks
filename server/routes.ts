@@ -381,7 +381,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (err) {
         return res.status(500).json({ message: "Error logging out" });
       }
-      return res.status(200).json({ message: "Logged out successfully" });
+      return res.status(200).json({ success: true, message: "Logged out successfully" });
     });
   });
 

@@ -232,8 +232,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Logout mutation
   const { mutateAsync: logoutMutation, isPending: isLoggingOut } = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/auth/logout");
-      return response.json();
+      return await apiRequest("POST", "/api/auth/logout");
     },
     onSuccess: () => {
       setUser(null);
