@@ -112,7 +112,14 @@ export const TaskItem: React.FC<TaskItemProps> = ({
               {/* Due Date */}
               <div className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" />
-                <span>{formatDate(task.dueDate)}</span>
+                {task.dueDate && new Date(task.dueDate) < new Date(new Date().setHours(0, 0, 0, 0)) && !task.completed ? (
+                  <span className="text-red-600 font-medium flex items-center">
+                    <span>{formatDate(task.dueDate)}</span>
+                    <span className="ml-1 text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">Overdue</span>
+                  </span>
+                ) : (
+                  <span>{formatDate(task.dueDate)}</span>
+                )}
               </div>
 
               {/* Category */}
