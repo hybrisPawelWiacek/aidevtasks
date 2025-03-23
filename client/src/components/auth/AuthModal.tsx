@@ -120,9 +120,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen }) => {
                 />
               </div>
               
-              <div className="mb-4 flex items-center">
+              <div className="mb-4 flex items-center justify-center">
                 <Separator className="flex-grow" />
-                <span className="mx-2 text-sm text-gray-500">OR</span>
+                <span className="mx-4 text-sm text-gray-500 font-medium">OR</span>
                 <Separator className="flex-grow" />
               </div>
               
